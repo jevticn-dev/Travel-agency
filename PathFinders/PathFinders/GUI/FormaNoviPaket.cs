@@ -5,110 +5,184 @@ using System.Windows.Forms;
 public class FormaNoviPaket : Form
 {
     // Kontrole za unos
-    private Label lblNaziv, lblDestinacija, lblCena, lblTrajanje, lblOpis;
-    private TextBox txtNaziv, txtDestinacija, txtCena, txtTrajanje, txtOpis;
+    private TextBox txtNaziv, txtCena;
+    private ComboBox cmbTip;
+
+    // panel koji menja sadržaj (dinamička polja)
+    private Panel dynamicPanel;
+
+    // kontrole za različite tipove
+    private TextBox txtDestinacija, txtTipSmestaja, txtTipPrevoza, txtDodatneAkt, txtVodic, txtBrod, txtRuta;
+    private DateTimePicker dtpDatumPolaska;
+
     private Button btnSacuvaj, btnOdustani;
 
-    // Svojstva koja će čuvati unete podatke
     public string Naziv { get; private set; }
-    public string Destinacija { get; private set; }
+    public string Tip { get; private set; }
     public string Cena { get; private set; }
-    public string Trajanje { get; private set; }
-    public string Opis { get; private set; }
+
+    // opcioni povratni detalji (popunjavani u zavisnosti od tipa)
+    public string Destinacija { get; private set; }
+    public string TipSmestaja { get; private set; }
+    public string TipPrevoza { get; private set; }
+    public string DodatneAktivnosti { get; private set; }
+    public string Vodic { get; private set; }
+    public string Brod { get; private set; }
+    public string Ruta { get; private set; }
+    public DateTime? DatumPolaska { get; private set; }
 
     public FormaNoviPaket()
     {
-        this.Text = "Novi Paket";
-        this.Size = new Size(400, 380);
-        this.StartPosition = FormStartPosition.CenterParent;
-        this.BackColor = Color.White;
-        this.FormBorderStyle = FormBorderStyle.FixedDialog;
-        this.MaximizeBox = false;
-        this.MinimizeBox = false;
+        Text = "Novi paket";
+        Size = new Size(520, 520);
+        StartPosition = FormStartPosition.CenterParent;
+        BackColor = Color.White;
+        FormBorderStyle = FormBorderStyle.FixedDialog;
+        MaximizeBox = false; MinimizeBox = false;
 
-        // Inicijalizacija i postavljanje kontrola
-        int y = 20;
+        var lblNaziv = MakeLabel("Naziv paketa:", 20, 20);
+        txtNaziv = MakeTextBox(160, 18, 320);
 
-        lblNaziv = NapraviLabelu("Naziv:", 20, y);
-        txtNaziv = NapraviTextBox(150, y, 200, false);
+        var lblTip = MakeLabel("Tip paketa:", 20, 60);
+        cmbTip = new ComboBox { Left = 160, Top = 58, Width = 320, DropDownStyle = ComboBoxStyle.DropDownList };
+        cmbTip.Items.AddRange(new[] {
+            "Aranžman za more",
+            "Aranžman za planine",
+            "Ekskurzije",
+            "Krstarenja"
+        });
+        cmbTip.SelectedIndexChanged += (s, e) => RenderDynamicFields();
 
-        lblDestinacija = NapraviLabelu("Destinacija:", 20, y += 40);
-        txtDestinacija = NapraviTextBox(150, y, 200, false);
+        var lblCena = MakeLabel("Cena:", 20, 100);
+        txtCena = MakeTextBox(160, 98, 320);
 
-        lblCena = NapraviLabelu("Cena:", 20, y += 40);
-        txtCena = NapraviTextBox(150, y, 200, false);
+        dynamicPanel = new Panel { Left = 20, Top = 140, Width = 460, Height = 260, BorderStyle = BorderStyle.None };
 
-        lblTrajanje = NapraviLabelu("Trajanje:", 20, y += 40);
-        txtTrajanje = NapraviTextBox(150, y, 200, false);
+        btnSacuvaj = MakeButton("Sačuvaj", 160, 420);
+        btnOdustani = MakeButton("Odustani", 300, 420);
 
-        lblOpis = NapraviLabelu("Opis:", 20, y += 40);
-        txtOpis = NapraviTextBox(150, y, 200, true);
-
-        btnSacuvaj = NapraviDugme("Sačuvaj", 50, y + 90);
-        btnOdustani = NapraviDugme("Odustani", 200, y + 90);
-
-        // Dodavanje kontrola na formu
-        this.Controls.AddRange(new Control[] {
-            lblNaziv, txtNaziv, lblDestinacija, txtDestinacija, lblCena, txtCena,
-            lblTrajanje, txtTrajanje, lblOpis, txtOpis, btnSacuvaj, btnOdustani
+        Controls.AddRange(new Control[] {
+            lblNaziv, txtNaziv, lblTip, cmbTip, lblCena, txtCena, dynamicPanel, btnSacuvaj, btnOdustani
         });
 
-        // Event handler za dugmad
-        btnSacuvaj.Click += (s, e) => {
-            if (string.IsNullOrWhiteSpace(txtNaziv.Text) || string.IsNullOrWhiteSpace(txtDestinacija.Text) || string.IsNullOrWhiteSpace(txtCena.Text))
+        btnSacuvaj.Click += (s, e) =>
+        {
+            if (string.IsNullOrWhiteSpace(txtNaziv.Text) || cmbTip.SelectedIndex == -1 || string.IsNullOrWhiteSpace(txtCena.Text))
             {
-                MessageBox.Show("Polja Naziv, Destinacija i Cena su obavezna.", "Greška", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Naziv, Tip i Cena su obavezni.", "Greška", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
-            this.Naziv = txtNaziv.Text;
-            this.Destinacija = txtDestinacija.Text;
-            this.Cena = txtCena.Text;
-            this.Trajanje = txtTrajanje.Text;
-            this.Opis = txtOpis.Text;
+            // zajedničko
+            Naziv = txtNaziv.Text.Trim();
+            Tip = cmbTip.SelectedItem.ToString();
+            Cena = txtCena.Text.Trim();
 
-            this.DialogResult = DialogResult.OK;
-            this.Close();
+            // validacija/specifični capture per tip
+            if (Tip == "Aranžman za more")
+            {
+                if (AnyEmpty(txtDestinacija, txtTipSmestaja, txtTipPrevoza))
+                {
+                    Error("Destinacija, Tip smeštaja i Tip prevoza su obavezni.");
+                    return;
+                }
+                Destinacija = txtDestinacija.Text.Trim();
+                TipSmestaja = txtTipSmestaja.Text.Trim();
+                TipPrevoza = txtTipPrevoza.Text.Trim();
+            }
+            else if (Tip == "Aranžman za planine")
+            {
+                if (AnyEmpty(txtDestinacija, txtTipSmestaja, txtDodatneAkt))
+                {
+                    Error("Destinacija, Tip smeštaja i Dodatne aktivnosti su obavezni.");
+                    return;
+                }
+                Destinacija = txtDestinacija.Text.Trim();
+                TipSmestaja = txtTipSmestaja.Text.Trim();
+                DodatneAktivnosti = txtDodatneAkt.Text.Trim();
+            }
+            else if (Tip == "Ekskurzije")
+            {
+                if (AnyEmpty(txtDestinacija, txtTipPrevoza, txtVodic))
+                {
+                    Error("Destinacija, Tip prevoza i Vodič su obavezni.");
+                    return;
+                }
+                Destinacija = txtDestinacija.Text.Trim();
+                TipPrevoza = txtTipPrevoza.Text.Trim();
+                Vodic = txtVodic.Text.Trim();
+            }
+            else if (Tip == "Krstarenja")
+            {
+                if (AnyEmpty(txtBrod, txtRuta) || dtpDatumPolaska == null)
+                {
+                    Error("Brod, Ruta i Datum polaska su obavezni.");
+                    return;
+                }
+                Brod = txtBrod.Text.Trim();
+                Ruta = txtRuta.Text.Trim();
+                DatumPolaska = dtpDatumPolaska.Value.Date;
+            }
+
+            DialogResult = DialogResult.OK;
+            Close();
         };
 
-        btnOdustani.Click += (s, e) => {
-            this.DialogResult = DialogResult.Cancel;
-            this.Close();
-        };
+        btnOdustani.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
+
+        // podrazumevani tip (po želji)
+        cmbTip.SelectedIndex = 0;
     }
 
-    // Pomoćne metode za kreiranje kontrola
-    private Label NapraviLabelu(string tekst, int x, int y)
+    private void RenderDynamicFields()
     {
-        return new Label
+        dynamicPanel.Controls.Clear();
+        int y = 0;
+
+        string tip = cmbTip.SelectedItem?.ToString();
+
+        if (tip == "Aranžman za more")
         {
-            Text = tekst,
-            Location = new Point(x, y),
-            Font = new Font("Segoe UI", 9, FontStyle.Bold),
-            AutoSize = true
-        };
+            dynamicPanel.Controls.AddRange(new Control[] {
+                MakeLabel("Destinacija:", 0, y),      txtDestinacija = MakeTextBox(150, y, 280),
+                MakeLabel("Tip smeštaja:", 0, y+=40), txtTipSmestaja = MakeTextBox(150, y, 280),
+                MakeLabel("Tip prevoza:", 0, y+=40),  txtTipPrevoza = MakeTextBox(150, y, 280),
+            });
+        }
+        else if (tip == "Aranžman za planine")
+        {
+            dynamicPanel.Controls.AddRange(new Control[] {
+                MakeLabel("Destinacija:", 0, y),       txtDestinacija = MakeTextBox(150, y, 280),
+                MakeLabel("Tip smeštaja:", 0, y+=40),  txtTipSmestaja = MakeTextBox(150, y, 280),
+                MakeLabel("Dodatne aktivnosti:", 0, y+=40), txtDodatneAkt = MakeTextBox(150, y, 280),
+            });
+        }
+        else if (tip == "Ekskurzije")
+        {
+            dynamicPanel.Controls.AddRange(new Control[] {
+                MakeLabel("Destinacija:", 0, y),      txtDestinacija = MakeTextBox(150, y, 280),
+                MakeLabel("Tip prevoza:", 0, y+=40),  txtTipPrevoza = MakeTextBox(150, y, 280),
+                MakeLabel("Vodič:", 0, y+=40),        txtVodic = MakeTextBox(150, y, 280),
+            });
+        }
+        else if (tip == "Krstarenja")
+        {
+            dynamicPanel.Controls.AddRange(new Control[] {
+                MakeLabel("Brod:", 0, y),             txtBrod = MakeTextBox(150, y, 280),
+                MakeLabel("Ruta:", 0, y+=40),         txtRuta = MakeTextBox(150, y, 280),
+                MakeLabel("Datum polaska:", 0, y+=40), dtpDatumPolaska = new DateTimePicker { Left=150, Top=y, Width=180, Format=DateTimePickerFormat.Short }
+            });
+        }
     }
 
-    private TextBox NapraviTextBox(int x, int y, int sirina, bool multiLine)
+    // helpers
+    private Label MakeLabel(string t, int x, int y) => new Label { Text = t, Left = x, Top = y, AutoSize = true, Font = new Font("Segoe UI", 9, FontStyle.Bold) };
+    private TextBox MakeTextBox(int x, int y, int w) => new TextBox { Left = x, Top = y, Width = w, Height = 25 };
+    private Button MakeButton(string t, int x, int y) => new Button { Text = t, Left = x, Top = y, Width = 120, Height = 35, BackColor = Color.FromArgb(41, 128, 185), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+    private static bool AnyEmpty(params TextBox[] boxes)
     {
-        return new TextBox
-        {
-            Location = new Point(x, y),
-            Size = new Size(sirina, multiLine ? 70 : 25),
-            Multiline = multiLine
-        };
+        foreach (var b in boxes) if (b == null || string.IsNullOrWhiteSpace(b.Text)) return true;
+        return false;
     }
-
-    private Button NapraviDugme(string tekst, int x, int y)
-    {
-        return new Button
-        {
-            Text = tekst,
-            Location = new Point(x, y),
-            Size = new Size(120, 35),
-            BackColor = Color.FromArgb(41, 128, 185),
-            ForeColor = Color.White,
-            FlatStyle = FlatStyle.Flat
-        };
-    }
+    private static void Error(string msg) => MessageBox.Show(msg, "Greška", MessageBoxButtons.OK, MessageBoxIcon.Error);
 }
