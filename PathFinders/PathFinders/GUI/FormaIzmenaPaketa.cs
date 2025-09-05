@@ -157,32 +157,32 @@ namespace PathFinders.GUI
             if (tip == "Aranžman za more")
             {
                 dynamicPanel.Controls.AddRange(new Control[] {
-                MakeLabel("Destinacija:", 0, y),      txtDestinacija = MakeTextBox(150, y, 280),
-                MakeLabel("Tip smeštaja:", 0, y+=40), txtTipSmestaja = MakeTextBox(150, y, 280),
-                MakeLabel("Tip prevoza:", 0, y+=40),  txtTipPrevoza = MakeTextBox(150, y, 280),
+                MakeLabel("Destinacija:", 0, y),      txtDestinacija = MakeTextBox(140, y, 320),
+                MakeLabel("Tip smeštaja:", 0, y+=40), txtTipSmestaja = MakeTextBox(140, y, 320),
+                MakeLabel("Tip prevoza:", 0, y+=40),  txtTipPrevoza = MakeTextBox(140, y, 320),
             });
             }
             else if (tip == "Aranžman za planine")
             {
                 dynamicPanel.Controls.AddRange(new Control[] {
-                MakeLabel("Destinacija:", 0, y),       txtDestinacija = MakeTextBox(150, y, 280),
-                MakeLabel("Tip smeštaja:", 0, y+=40),  txtTipSmestaja = MakeTextBox(150, y, 280),
-                MakeLabel("Dodatne aktivnosti:", 0, y+=40), txtDodatneAkt = MakeTextBox(150, y, 280),
+                MakeLabel("Destinacija:", 0, y),       txtDestinacija = MakeTextBox(140, y, 320),
+                MakeLabel("Tip smeštaja:", 0, y+=40),  txtTipSmestaja = MakeTextBox(140, y, 320),
+                MakeLabel("Dodatne aktivnosti:", 0, y+=40), txtDodatneAkt = MakeTextBox(140, y, 320),
             });
             }
             else if (tip == "Ekskurzije")
             {
                 dynamicPanel.Controls.AddRange(new Control[] {
-                MakeLabel("Destinacija:", 0, y),      txtDestinacija = MakeTextBox(150, y, 280),
-                MakeLabel("Tip prevoza:", 0, y+=40),  txtTipPrevoza = MakeTextBox(150, y, 280),
-                MakeLabel("Vodič:", 0, y+=40),        txtVodic = MakeTextBox(150, y, 280),
+                MakeLabel("Destinacija:", 0, y),      txtDestinacija = MakeTextBox(140, y, 320),
+                MakeLabel("Tip prevoza:", 0, y+=40),  txtTipPrevoza = MakeTextBox(140, y, 320),
+                MakeLabel("Vodič:", 0, y+=40),        txtVodic = MakeTextBox(140, y, 320),
             });
             }
             else if (tip == "Krstarenja")
             {
                 dynamicPanel.Controls.AddRange(new Control[] {
-                MakeLabel("Brod:", 0, y),             txtBrod = MakeTextBox(150, y, 280),
-                MakeLabel("Ruta:", 0, y+=40),         txtRuta = MakeTextBox(150, y, 280),
+                MakeLabel("Brod:", 0, y),             txtBrod = MakeTextBox(140, y, 320),
+                MakeLabel("Ruta:", 0, y+=40),         txtRuta = MakeTextBox(140, y, 320),
                 MakeLabel("Datum polaska:", 0, y+=40), dtpDatumPolaska = new DateTimePicker { Left=150, Top=y, Width=180, Format=DateTimePickerFormat.Short }
             });
             }

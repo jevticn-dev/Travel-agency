@@ -350,164 +350,420 @@ namespace PathFinders.GUI
             }
             else if (tip == "Paketi")
             {
-                // Kolone: Naziv | Cena | Tip | Destinacija | Detalji
-                dgv.Columns.Add("Naziv", "Naziv");
-                dgv.Columns.Add("Cena", "Cena");
-                dgv.Columns.Add("Tip", "Tip");
-                dgv.Columns.Add("Destinacija", "Destinacija");
-                dgv.Columns.Add("Detalji", "Detalji");
-
-                // Širine kolona (Detalji se širi)
-                dgv.Columns["Naziv"].Width = 200;
-                dgv.Columns["Cena"].Width = 100;
-                dgv.Columns["Tip"].Width = 160;
-                dgv.Columns["Destinacija"].Width = 180;
-                dgv.Columns["Detalji"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-
-                // Pomocna lokalna funkcija za formatiranje "Detalji"
-                string DetaljiText(
-                    string tipPaketa,
-                    string tipSmestaja = null,
-                    string tipPrevoza = null,
-                    string dodatneAkt = null,
-                    string vodic = null,
-                    string brod = null,
-                    string ruta = null,
-                    DateTime? datumPolaska = null)
+                
+                var paketiHost = new Panel
                 {
-                    if (tipPaketa == "Aranžman za more")
-                        return $"Smeštaj: {tipSmestaja ?? "-"}, Prevoz: {tipPrevoza ?? "-"}";
-                    if (tipPaketa == "Aranžman za planine")
-                        return $"Smeštaj: {tipSmestaja ?? "-"}, Akt.: {dodatneAkt ?? "-"}";
-                    if (tipPaketa == "Ekskurzije")
-                        return $"Prevoz: {tipPrevoza ?? "-"}, Vodič: {vodic ?? "-"}";
-                    if (tipPaketa == "Krstarenja")
-                        return $"Brod: {brod ?? "-"}, Ruta: {ruta ?? "-"}{(datumPolaska.HasValue ? $", Polazak: {datumPolaska.Value:dd.MM.yyyy}" : "")}";
-                    return "";
+                    Dock = DockStyle.Fill,
+                    BackColor = Color.White
+                };
+                frame.Controls.Remove(dgv); 
+                frame.Controls.Add(paketiHost);
+                paketiHost.BringToFront();
+
+                
+                var cboTip = new ComboBox
+                {
+                    DropDownStyle = ComboBoxStyle.DropDownList,
+                    Width = 220,
+                    Top = 12
+                };
+                topBar.Controls.Add(cboTip);
+
+                
+                topBar.Resize += (s, e2) =>
+                {
+                    txtPretraga.Left = topBar.ClientSize.Width - txtPretraga.Width - 10;
+                    cboTip.Left = txtPretraga.Left - cboTip.Width - 10;
+                };
+                
+                txtPretraga.Left = topBar.ClientSize.Width - txtPretraga.Width - 10;
+                cboTip.Left = txtPretraga.Left - cboTip.Width - 10;
+
+                
+                var tips = new[] { "Aranžman za more", "Aranžman za planine", "Ekskurzije", "Krstarenja" };
+
+                
+                var columnsByType = new Dictionary<string, (string name, int width, DataGridViewAutoSizeColumnMode mode)[]>
+                {
+                    ["Aranžman za more"] = new[]
+                    {
+                        ("Naziv", 200, DataGridViewAutoSizeColumnMode.None),
+                        ("Cena", 100, DataGridViewAutoSizeColumnMode.None),
+                        ("Tip", 160, DataGridViewAutoSizeColumnMode.None),
+                        ("Destinacija", 180, DataGridViewAutoSizeColumnMode.None),
+                        ("Tip smeštaja", 160, DataGridViewAutoSizeColumnMode.None),
+                        ("Tip prevoza", 160, DataGridViewAutoSizeColumnMode.Fill)
+                    },
+                    ["Aranžman za planine"] = new[]
+                    {
+                        ("Naziv", 200, DataGridViewAutoSizeColumnMode.None),
+                        ("Cena", 100, DataGridViewAutoSizeColumnMode.None),
+                        ("Tip", 160, DataGridViewAutoSizeColumnMode.None),
+                        ("Destinacija", 180, DataGridViewAutoSizeColumnMode.None),
+                        ("Tip smeštaja", 160, DataGridViewAutoSizeColumnMode.None),
+                        ("Dodatne aktivnosti", 200, DataGridViewAutoSizeColumnMode.Fill)
+                    },
+                    ["Ekskurzije"] = new[]
+                    {
+                        ("Naziv", 220, DataGridViewAutoSizeColumnMode.None),
+                        ("Cena", 100, DataGridViewAutoSizeColumnMode.None),
+                        ("Tip", 160, DataGridViewAutoSizeColumnMode.None),
+                        ("Destinacija", 200, DataGridViewAutoSizeColumnMode.None),
+                        ("Tip prevoza", 160, DataGridViewAutoSizeColumnMode.None),
+                        ("Vodič", 200, DataGridViewAutoSizeColumnMode.Fill)
+                    },
+                    ["Krstarenja"] = new[]
+                    {
+                        ("Naziv", 240, DataGridViewAutoSizeColumnMode.None),
+                        ("Cena", 100, DataGridViewAutoSizeColumnMode.None),
+                        ("Tip", 160, DataGridViewAutoSizeColumnMode.None),
+                        ("Brod", 180, DataGridViewAutoSizeColumnMode.None),
+                        ("Ruta", 260, DataGridViewAutoSizeColumnMode.Fill),
+                        ("Polazak", 130, DataGridViewAutoSizeColumnMode.None)
+                    }
+                };
+                var grids = new Dictionary<string, DataGridView>();
+               
+                DataGridView MakeGrid((string name, int width, DataGridViewAutoSizeColumnMode mode)[] cols)
+                {
+                    var g = new DataGridView
+                    {
+                        Dock = DockStyle.Fill,
+                        BackgroundColor = Color.White,
+                        GridColor = Color.LightGray,
+                        AllowUserToAddRows = false,
+                        EnableHeadersVisualStyles = false,
+                        SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                        MultiSelect = false,
+                        EditMode = DataGridViewEditMode.EditProgrammatically,
+                        ReadOnly = true,
+                        ColumnHeadersDefaultCellStyle = { ForeColor = Color.Black, BackColor = Color.White },
+                        DefaultCellStyle =
+                        {
+                            BackColor = Color.White,
+                            ForeColor = Color.Black,
+                            SelectionBackColor = Color.LightGray,
+                            SelectionForeColor = Color.Black
+                        },
+                        AlternatingRowsDefaultCellStyle =
+                        {
+                            BackColor = Color.FromArgb(245,245,245),
+                            ForeColor = Color.Black
+                        },
+                        AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None,
+                        Visible = false 
+                        };
+                    
+                    foreach (var c in cols)
+                    {
+                        var col = new DataGridViewTextBoxColumn
+                        {
+                            Name = c.name,
+                            HeaderText = c.name,
+                            AutoSizeMode = c.mode
+                        };
+                        if (c.mode == DataGridViewAutoSizeColumnMode.None) col.Width = c.width;
+                        g.Columns.Add(col);
+                    }
+                    
+                    g.CellClick += (ss, ee) =>
+                    {
+                        if (ee.RowIndex >= 0)
+                        {
+                            foreach (var other in grids.Values)
+                                if (!ReferenceEquals(other, g)) other.ClearSelection();
+                            g.ClearSelection();
+                            g.Rows[ee.RowIndex].Selected = true;
+                        }
+                    };
+                    return g;
                 }
 
-                // Demo redovi (primeri različitih tipova)
-                dgv.Rows.Add(
-                    "Krf - leto 2026",
-                    "599€",
-                    "Aranžman za more",
-                    "Krf",
-                    DetaljiText("Aranžman za more", tipSmestaja: "Hotel 4*", tipPrevoza: "Avion")
-                );
-                dgv.Rows.Add(
-                    "Kopaonik vikend",
-                    "199€",
-                    "Aranžman za planine",
-                    "Kopaonik",
-                    DetaljiText("Aranžman za planine", tipSmestaja: "Apartman", dodatneAkt: "Ski pass")
-                );
-                dgv.Rows.Add(
-                    "Beč jednodnevna",
-                    "89€",
-                    "Ekskurzije",
-                    "Beč",
-                    DetaljiText("Ekskurzije", tipPrevoza: "Autobus", vodic: "Licencirani vodič")
-                );
-                dgv.Rows.Add(
-                    "Jadransko krstarenje",
-                    "1299€",
-                    "Krstarenja",
-                    "-",
-                    DetaljiText("Krstarenja", brod: "MSC Opera", ruta: "Split–Kotor–KrF–Bari", datumPolaska: new DateTime(2026, 6, 15))
-                );
-
-                // Klik selektuje red
-                dgv.CellClick += (s2, e2) =>
+                
+                
+                foreach (var t in tips)
                 {
-                    if (e2.RowIndex >= 0)
+                    var g = MakeGrid(columnsByType[t]);
+                    grids[t] = g;
+                    paketiHost.Controls.Add(g);
+                    g.BringToFront();
+                }
+
+                
+                cboTip.Items.AddRange(tips);
+                if (cboTip.Items.Count > 0) cboTip.SelectedIndex = 0;
+
+                
+                void ShowType(string type)
+                {
+                    foreach (var kv in grids)
+                        kv.Value.Visible = (kv.Key == type);
+                }
+
+                
+                ShowType((string)cboTip.SelectedItem);
+
+                
+                cboTip.SelectedIndexChanged += (s, e2) =>
+                {
+                    var tsel = (string)cboTip.SelectedItem;
+                    ShowType(tsel);
+                    txtPretraga.Text = "";
+
+                    foreach (var g in grids.Values)
                     {
-                        dgv.ClearSelection();
-                        dgv.Rows[e2.RowIndex].Selected = true;
+                        g.ClearSelection();
+                        g.CurrentCell = null;
                     }
                 };
 
-                // + Dodaj
-                btnDodaj.Click += (s, e) =>
+                // --- DEMO podaci (upis direktno u odgovarajuće kolone) ---
+                
+                grids["Aranžman za more"].Rows.Add("Krf - leto 2026", "599€", "Aranžman za more", "Krf", "Hotel 4*", "Avion");
+                // planine
+                grids["Aranžman za planine"].Rows.Add("Kopaonik vikend", "199€", "Aranžman za planine", "Kopaonik", "Apartman", "Ski pass");
+                // ekskurzije
+                grids["Ekskurzije"].Rows.Add("Beč jednodnevna", "89€", "Ekskurzije", "Beč", "Autobus", "Licencirani vodič");
+                // krstarenja
+                grids["Krstarenja"].Rows.Add("Jadransko krstarenje", "1299€", "Krstarenja", "MSC Opera", "Split–Kotor–Krf–Bari", new DateTime(2026, 6, 15).ToString("dd.MM.yyyy"));
+
+                
+                DataGridView CurrentGrid() => grids[(string)cboTip.SelectedItem];
+
+                
+                btnDodaj.Click += (s, e2) =>
                 {
                     var forma = new FormaNoviPaket();
                     if (forma.ShowDialog() == DialogResult.OK)
                     {
-                        // Destinacija zavisi od tipa; za krstarenja nema glavne destinacije -> "-"
-                        string destinacija =
-                            forma.Tip == "Krstarenja" ? "-" : (forma.Destinacija ?? "-");
+                        
+                        var tipPaketa = forma.Tip;
 
-                        string detalji = DetaljiText(
-                            forma.Tip,
-                            tipSmestaja: forma.TipSmestaja,
-                            tipPrevoza: forma.TipPrevoza,
-                            dodatneAkt: forma.DodatneAktivnosti,
-                            vodic: forma.Vodic,
-                            brod: forma.Brod,
-                            ruta: forma.Ruta,
-                            datumPolaska: forma.DatumPolaska
-                        );
+                        if (tipPaketa == "Aranžman za more")
+                            grids[tipPaketa].Rows.Add(forma.Naziv, forma.Cena, tipPaketa, forma.Destinacija ?? "-", forma.TipSmestaja, forma.TipPrevoza);
+                        else if (tipPaketa == "Aranžman za planine")
+                            grids[tipPaketa].Rows.Add(forma.Naziv, forma.Cena, tipPaketa, forma.Destinacija ?? "-", forma.TipSmestaja, forma.DodatneAktivnosti);
+                        else if (tipPaketa == "Ekskurzije")
+                            grids[tipPaketa].Rows.Add(forma.Naziv, forma.Cena, tipPaketa, forma.Destinacija ?? "-", forma.TipPrevoza, forma.Vodic);
+                        else if (tipPaketa == "Krstarenja")
+                            grids[tipPaketa].Rows.Add(forma.Naziv, forma.Cena, tipPaketa, forma.Brod, forma.Ruta, forma.DatumPolaska.HasValue ? forma.DatumPolaska.Value.ToString("dd.MM.yyyy") : "");
 
-                        dgv.Rows.Add(
-                            forma.Naziv,
-                            forma.Cena,
-                            forma.Tip,
-                            destinacija,
-                            detalji
-                        );
+                        
+                        cboTip.SelectedItem = tipPaketa;
                     }
                 };
 
-                // ✎ Izmeni
-                btnIzmeni.Click += (s, e) =>
+                
+                btnIzmeni.Click += (s, e2) =>
                 {
-                    if (dgv.SelectedRows.Count == 0)
+                   
+                    DataGridView fromGrid = null;
+                    DataGridViewRow row = null;
+                    foreach (var kv in grids)
                     {
-                        MessageBox.Show("Prvo izaberi paket u tabeli.", "Info",
-                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        if (kv.Value.SelectedRows.Count > 0)
+                        {
+                            fromGrid = kv.Value;
+                            row = kv.Value.SelectedRows[0];
+                            break;
+                        }
+                    }
+                    if (row == null)
+                    {
+                        MessageBox.Show("Prvo izaberi paket u tabeli.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         return;
                     }
 
-                    var row = dgv.SelectedRows[0];
+                    string GetCell(string name) => fromGrid.Columns.Contains(name)
+                    ? (row.Cells[name].Value?.ToString() ?? "")
+                    : "";
 
-                    string naziv = row.Cells["Naziv"].Value?.ToString() ?? "";
-                    string tipPaketa = row.Cells["Tip"].Value?.ToString() ?? "";
-                    string cena = row.Cells["Cena"].Value?.ToString() ?? "";
-                    string destinacija = row.Cells["Destinacija"].Value?.ToString() ?? "";
-
-                    // Napomena: iz kolone "Detalji" ne možemo pouzdano rekonstruisati sva pojedinačna polja,
-                    // pa u formu za izmenu šaljemo ono što imamo (tip + osnovna polja).
-                    // Korisnik može popuniti/korigovati specifična polja po tipu.
-                    var forma = new FormaIzmenaPaketa(
-                        naziv,
-                        tipPaketa,
-                        cena,
-                        destinacija // za more/planine/ekskurzije; za krstarenja ostaje "-"
-                                    // Ostala specifična polja ostavljamo prazna,
-                                    // pošto "Detalji" je formatiran tekst (nije struktuirano).
-                    );
-
-                    if (forma.ShowDialog() == DialogResult.OK)
+                    DateTime? ParseDate(string s)
                     {
-                        // Destinacija opet zavisi od tipa
-                        string novaDest =
-                            forma.Tip == "Krstarenja" ? "-" : (forma.Destinacija ?? "-");
+                        if (DateTime.TryParse(s, out var d)) return d;
+                        return null;
+                    }
 
-                        string detalji = DetaljiText(
-                            forma.Tip,
-                            tipSmestaja: forma.TipSmestaja,
-                            tipPrevoza: forma.TipPrevoza,
-                            dodatneAkt: forma.DodatneAktivnosti,
-                            vodic: forma.Vodic,
-                            brod: forma.Brod,
-                            ruta: forma.Ruta,
-                            datumPolaska: forma.DatumPolaska
+                    string naziv = GetCell("Naziv");
+                    string tipPaketa = GetCell("Tip");
+                    string cena = GetCell("Cena");
+
+                    FormaIzmenaPaketa forma = null;
+
+
+                    if (tipPaketa == "Aranžman za more")
+                    {
+                        var destinacija = GetCell("Destinacija");
+                        var tipSmestaja = GetCell("Tip smeštaja");
+                        var tipPrevoza = GetCell("Tip prevoza");
+
+                        forma = new FormaIzmenaPaketa(
+                            naziv, tipPaketa, cena,
+                            destinacija: destinacija,
+                            tipSmestaja: tipSmestaja,
+                            tipPrevoza: tipPrevoza
                         );
+                    }
+                    else if (tipPaketa == "Aranžman za planine")
+                    {
+                        var destinacija = GetCell("Destinacija");
+                        var tipSmestaja = GetCell("Tip smeštaja");
+                        var akt = GetCell("Dodatne aktivnosti");
 
-                        row.Cells["Naziv"].Value = forma.Naziv;
-                        row.Cells["Cena"].Value = forma.Cena;
-                        row.Cells["Tip"].Value = forma.Tip;
-                        row.Cells["Destinacija"].Value = novaDest;
-                        row.Cells["Detalji"].Value = detalji;
+                        forma = new FormaIzmenaPaketa(
+                            naziv, tipPaketa, cena,
+                            destinacija: destinacija,
+                            tipSmestaja: tipSmestaja,
+                            dodatneAkt: akt
+                        );
+                    }
+                    else if (tipPaketa == "Ekskurzije")
+                    {
+                        var destinacija = GetCell("Destinacija");
+                        var tipPrevoza = GetCell("Tip prevoza");
+                        var vodic = GetCell("Vodič");
+
+                        forma = new FormaIzmenaPaketa(
+                            naziv, tipPaketa, cena,
+                            destinacija: destinacija,
+                            tipPrevoza: tipPrevoza,
+                            vodic: vodic
+                        );
+                    }
+                    else if (tipPaketa == "Krstarenja")
+                    {
+                        var brod = GetCell("Brod");
+                        var ruta = GetCell("Ruta");
+                        var polStr = GetCell("Polazak");
+                        var pol = ParseDate(polStr);
+
+                        forma = new FormaIzmenaPaketa(
+                            naziv, tipPaketa, cena,
+                            brod: brod,
+                            ruta: ruta,
+                            datumPolaska: pol
+                        );
+                    }
+                    else
+                    {
+                        // fallback (ne bi trebalo da se desi)
+                        forma = new FormaIzmenaPaketa(naziv, tipPaketa, cena);
+                    }
+
+
+                    if (forma.ShowDialog() != DialogResult.OK) return;
+
+                    
+                    string noviTip = forma.Tip;
+
+                    // Pripremi podatke po tipovima
+                    if (noviTip == "Aranžman za more")
+                    {
+                        var dest = forma.Destinacija ?? "-";
+                        var tsm = forma.TipSmestaja;
+                        var tpv = forma.TipPrevoza;
+
+                        if (noviTip == tipPaketa)
+                        {
+                            row.Cells["Naziv"].Value = forma.Naziv;
+                            row.Cells["Cena"].Value = forma.Cena;
+                            row.Cells["Tip"].Value = noviTip;
+                            row.Cells["Destinacija"].Value = dest;
+                            row.Cells["Tip smeštaja"].Value = tsm;
+                            row.Cells["Tip prevoza"].Value = tpv;
+                        }
+                        else
+                        {
+                            fromGrid.Rows.Remove(row);
+                            grids[noviTip].Rows.Add(forma.Naziv, forma.Cena, noviTip, dest, tsm, tpv);
+                            cboTip.SelectedItem = noviTip;
+                        }
+                    }
+                    else if (noviTip == "Aranžman za planine")
+                    {
+                        var dest = forma.Destinacija ?? "-";
+                        var tsm = forma.TipSmestaja;
+                        var akt = forma.DodatneAktivnosti;
+
+                        if (noviTip == tipPaketa)
+                        {
+                            row.Cells["Naziv"].Value = forma.Naziv;
+                            row.Cells["Cena"].Value = forma.Cena;
+                            row.Cells["Tip"].Value = noviTip;
+                            row.Cells["Destinacija"].Value = dest;
+                            row.Cells["Tip smeštaja"].Value = tsm;
+                            row.Cells["Dodatne aktivnosti"].Value = akt;
+                        }
+                        else
+                        {
+                            fromGrid.Rows.Remove(row);
+                            grids[noviTip].Rows.Add(forma.Naziv, forma.Cena, noviTip, dest, tsm, akt);
+                            cboTip.SelectedItem = noviTip;
+                        }
+                    }
+                    else if (noviTip == "Ekskurzije")
+                    {
+                        var dest = forma.Destinacija ?? "-";
+                        var tpv = forma.TipPrevoza;
+                        var vod = forma.Vodic;
+
+                        if (noviTip == tipPaketa)
+                        {
+                            row.Cells["Naziv"].Value = forma.Naziv;
+                            row.Cells["Cena"].Value = forma.Cena;
+                            row.Cells["Tip"].Value = noviTip;
+                            row.Cells["Destinacija"].Value = dest;
+                            row.Cells["Tip prevoza"].Value = tpv;
+                            row.Cells["Vodič"].Value = vod;
+                        }
+                        else
+                        {
+                            fromGrid.Rows.Remove(row);
+                            grids[noviTip].Rows.Add(forma.Naziv, forma.Cena, noviTip, dest, tpv, vod);
+                            cboTip.SelectedItem = noviTip;
+                        }
+                    }
+                    else if (noviTip == "Krstarenja")
+                    {
+                        var brod = forma.Brod;
+                        var ruta = forma.Ruta;
+                        var pol = forma.DatumPolaska.HasValue ? forma.DatumPolaska.Value.ToString("dd.MM.yyyy") : "";
+
+                        if (noviTip == tipPaketa)
+                        {
+                            row.Cells["Naziv"].Value = forma.Naziv;
+                            row.Cells["Cena"].Value = forma.Cena;
+                            row.Cells["Tip"].Value = noviTip;
+                            row.Cells["Brod"].Value = brod;
+                            row.Cells["Ruta"].Value = ruta;
+                            row.Cells["Polazak"].Value = pol;
+                        }
+                        else
+                        {
+                            fromGrid.Rows.Remove(row);
+                            grids[noviTip].Rows.Add(forma.Naziv, forma.Cena, noviTip, brod, ruta, pol);
+                            cboTip.SelectedItem = noviTip;
+                        }
+                    }
+                };
+
+                
+                txtPretraga.TextChanged += (s, e2) =>
+                {
+                    var g = CurrentGrid();
+                    string q = (txtPretraga.Text ?? "").Trim().ToLowerInvariant();
+                    foreach (DataGridViewRow r in g.Rows)
+                    {
+                        bool match = string.IsNullOrEmpty(q);
+                        if (!match)
+                        {
+                            foreach (DataGridViewCell c in r.Cells)
+                            {
+                                var val = c.Value?.ToString()?.ToLowerInvariant() ?? "";
+                                if (val.Contains(q)) { match = true; break; }
+                            }
+                        }
+                        r.Visible = match;
                     }
                 };
             }
