@@ -24,15 +24,18 @@ namespace PathFinders.GUI
         private DataGridView dgvKlijenti;
         private Button btnDodaj, btnIzmeni, btnUndo, btnRedo;
         private TextBox txtPretraga;
-
+        private readonly Size _baseClientSize;
 
         public MainScreen()
         {
             // Forma
             this.Text = "Moja Turistička Agencija";
-            this.Size = new Size(1000, 600);
+            this.Size = new Size(1300, 600);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.White;
+
+            _baseClientSize = this.ClientSize;   // zapamti
+            this.MinimumSize = this.Size;
 
             // Sidebar
             sidebar = new Panel();
@@ -270,12 +273,13 @@ namespace PathFinders.GUI
                 dgv.Columns["BrojPasosa"].Width = 120;
                 dgv.Columns["DatumRodjenja"].Width = 120;
 
-                dgv.Columns["Email"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-                dgv.Columns["Email"].Width = 320;  
+
+                dgv.Columns["Email"].MinimumWidth = 220;
+                dgv.Columns["Email"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
 
                 dgv.Columns["Telefon"].Width = 140;
+                dgv.Columns["Telefon"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
 
-                
                 dgv.CellClick += (s2, e2) =>
                 {
                     if (e2.RowIndex >= 0)
@@ -769,78 +773,112 @@ namespace PathFinders.GUI
             }
             else if (tip == "Rezervacije")
             {
-                dgv.Columns.Add("Ime", "Ime");
-                dgv.Columns.Add("Prezime", "Prezime");
-                dgv.Columns.Add("Paket", "Paket");
-                dgv.Columns.Add("Datum", "Datum");
-                dgv.Columns.Add("Status", "Status");
+                
+                txtPretraga.Visible = false;
 
                 
-                dgv.Columns["Ime"].Width = 140;
-                dgv.Columns["Prezime"].Width = 160;
-                dgv.Columns["Paket"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                dgv.Columns["Datum"].Width = 120;
-                dgv.Columns["Status"].Width = 120;
-
-                
-                dgv.Rows.Add("Pera", "Perić", "Grčka - Letovanje", "12.7.2025", "Potvrđeno");
-                dgv.Rows.Add("Marija", "Marić", "Kopaonik - Zimovanje", "15.1.2026", "Na čekanju");
-
-                btnDodaj.Click += (s, e) =>
+                var cboKlijent = new ComboBox
                 {
-                    var forma = new FormaNovaRezervacija();
-                    if (forma.ShowDialog() == DialogResult.OK)
+                    DropDownStyle = ComboBoxStyle.DropDownList,
+                    Width = 260,
+                    Top = 12,
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right
+                };
+                cboKlijent.Items.AddRange(new object[] { "Bojan Kovarbasic", "Bojana Kovarbasic" });
+                cboKlijent.SelectedIndex = 0;
+                topBar.Controls.Add(cboKlijent);
+
+                
+                topBar.Resize += (s, e2) =>
+                {
+                    cboKlijent.Left = topBar.ClientSize.Width - cboKlijent.Width - 10;
+                };
+                
+                cboKlijent.Left = topBar.ClientSize.Width - cboKlijent.Width - 10;
+
+                dgv.Columns.Add("Paket", "Paket");
+                dgv.Columns.Add("BrojOsoba", "Broj osoba");
+                dgv.Columns.Add("DatumRez", "Datum rezervacije");
+                dgv.Columns.Add("Destinacija", "Destinacija");
+
+                
+                var colKlijent = new DataGridViewTextBoxColumn
+                {
+                    Name = "Klijent",
+                    HeaderText = "Klijent",
+                    Visible = false
+                };
+                dgv.Columns.Add(colKlijent);
+
+                
+                dgv.Columns["Paket"].Width = 260;
+                dgv.Columns["BrojOsoba"].Width = 140;
+                dgv.Columns["DatumRez"].Width = 220;
+                dgv.Columns["Destinacija"].MinimumWidth = 260;
+                dgv.Columns["Destinacija"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+
+                
+                dgv.Rows.Add("Grčka - Letovanje", 2, "12.07.2025", "Krf", "Bojan Kovarbasic");
+                dgv.Rows.Add("Kopaonik - Zimovanje", 4, "15.01.2026", "Kopaonik", "Bojana Kovarbasic");
+
+
+                
+                dgv.CellClick += (s2, e2) =>
+                {
+                    if (e2.RowIndex >= 0)
                     {
-                        dgv.Rows.Add(
-                            forma.Ime, forma.Prezime, forma.Paket,
-                            forma.Datum.ToShortDateString(), forma.Status
-                        );
+                        
+                        dgv.ClearSelection();
+                        dgv.Rows[e2.RowIndex].Selected = true;
                     }
                 };
 
-                btnIzmeni.Click += (s, e) => {
-                    if (dgv.SelectedRows.Count == 0)
+                void ApplyFilter()
+                {
+                    var sel = cboKlijent.SelectedItem?.ToString() ?? "";
+                    foreach (DataGridViewRow r in dgv.Rows)
                     {
-                        MessageBox.Show("Prvo izaberi rezervaciju u tabeli.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        return;
+                        var klijent = r.Cells["Klijent"].Value?.ToString() ?? "";
+                        bool show = string.Equals(klijent, sel, StringComparison.OrdinalIgnoreCase);
+                        r.Visible = show;
+                    }
+                }
+
+                cboKlijent.SelectedIndexChanged += (s, e2) => ApplyFilter();
+
+                ApplyFilter();
+
+                cboKlijent.SelectedIndexChanged += (s, e2) =>
+                {
+                    string sel = cboKlijent.SelectedItem?.ToString() ?? "";
+                    foreach (DataGridViewRow r in dgv.Rows)
+                    {
+                        var klijent = r.Cells["Klijent"].Value?.ToString() ?? "";
+                        r.Visible = string.Equals(klijent, sel, StringComparison.OrdinalIgnoreCase);
                     }
 
-                    var selectedRow = dgv.SelectedRows[0];
-                    string ime = selectedRow.Cells["Ime"].Value?.ToString() ?? "";
-                    string prezime = selectedRow.Cells["Prezime"].Value?.ToString() ?? "";
-                    string paket = selectedRow.Cells["Paket"].Value?.ToString() ?? "";
-                    string status = selectedRow.Cells["Status"].Value?.ToString() ?? "";
-                    DateTime datum;
-                    if (!DateTime.TryParse(selectedRow.Cells["Datum"].Value?.ToString(), out datum))
-                    {
-                        datum = DateTime.Today;
-                    }
-
-                    var forma = new FormaIzmenaRezervacije(ime, prezime, paket, datum, status);
-                    if (forma.ShowDialog() == DialogResult.OK)
-                    {
-                        // Ažuriraj odabrani red sa novim podacima
-                        selectedRow.Cells["Ime"].Value = forma.Ime;
-                        selectedRow.Cells["Prezime"].Value = forma.Prezime;
-                        selectedRow.Cells["Paket"].Value = forma.Paket;
-                        selectedRow.Cells["Datum"].Value = forma.Datum.ToShortDateString();
-                        selectedRow.Cells["Status"].Value = forma.Status;
-                    }
+                    
+                    dgv.ClearSelection();
+                    dgv.CurrentCell = null;
                 };
 
-                // Dodajemo handler za dugme Obrisi
-                btnOtkazi.Click += (s, e) => {
+                btnOtkazi.Click += (s, e) =>
+                {
                     if (dgv.SelectedRows.Count == 0)
                     {
-                        MessageBox.Show("Prvo izaberi rezervaciju u tabeli.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show("Prvo izaberite rezervaciju u tabeli.", "Info",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
                         return;
                     }
 
-                    var result = MessageBox.Show("Da li ste sigurni da želite da otkažete ovu rezervaciju?", "Potvrda otkazivanja", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                    var result = MessageBox.Show(
+                        "Da li ste sigurni da želite da otkažete rezervaciju?",
+                        "Potvrda otkazivanja",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning);
 
                     if (result == DialogResult.Yes)
                     {
-                        // Ukloni odabrani red iz DataGridView
                         dgv.Rows.Remove(dgv.SelectedRows[0]);
                     }
                 };
