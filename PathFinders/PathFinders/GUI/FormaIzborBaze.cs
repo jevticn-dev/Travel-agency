@@ -1,12 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.IO;
 using System.Windows.Forms;
+using PathFinders.Patterns.Multiton; // Import Multiton namespace
+using PathFinders.Services;
 
 namespace PathFinders.GUI
 {
@@ -18,6 +14,7 @@ namespace PathFinders.GUI
 
         public FormaIzborBaze()
         {
+            // Windows Forms auto-generated code, no changes needed here
             Text = "Odabir baze";
             Size = new Size(480, 250);
             StartPosition = FormStartPosition.CenterScreen;
@@ -59,15 +56,8 @@ namespace PathFinders.GUI
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
 
-            
-            cboConfigs.Items.AddRange(new object[]
-            {
-                "config1.txt",
-                "config2.txt",
-                "config3.txt",
-                "config4.txt"
-            });
-            if (cboConfigs.Items.Count > 0) cboConfigs.SelectedIndex = 0;
+            // Dynamically load config files from the application's startup path.
+            LoadConfigFiles();
 
             btnOpen = new Button
             {
@@ -93,6 +83,21 @@ namespace PathFinders.GUI
             Controls.Add(lblTitle);
         }
 
+        private void LoadConfigFiles()
+        {
+            // We search for files named 'config*.txt'
+            string[] configFiles = Directory.GetFiles(Application.StartupPath, "config*.txt");
+            foreach (string file in configFiles)
+            {
+                // We add just the filename to the ComboBox
+                cboConfigs.Items.Add(Path.GetFileName(file));
+            }
+            if (cboConfigs.Items.Count > 0)
+            {
+                cboConfigs.SelectedIndex = 0;
+            }
+        }
+
         private void BtnOpen_Click(object sender, EventArgs e)
         {
             if (cboConfigs.SelectedItem == null)
@@ -102,13 +107,28 @@ namespace PathFinders.GUI
                 return;
             }
 
-            
-            var main = new MainScreen();
+            try
+            {
+                string configFilePath = Path.Combine(Application.StartupPath, cboConfigs.SelectedItem.ToString());
+                string[] lines = File.ReadAllLines(configFilePath);
+                string agencyName = lines[0];
+                string connectionString = lines[1];
 
-            // sakrij ovu formu i zatvori je kad se MainScreen zatvori
-            this.Hide();
-            main.FormClosed += (s, _) => this.Close();
-            main.Show();
+                // Multiton: Get or create a single instance of the database service for this connection string
+                IDatabaseService dbService = DatabaseManager.GetInstance(connectionString);
+
+                // Pass the service and agency name to MainScreen
+                var main = new MainScreen(agencyName, dbService);
+
+                this.Hide();
+                main.FormClosed += (s, _) => this.Close();
+                main.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Greška pri učitavanju konfiguracije: {ex.Message}", "Greška",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }

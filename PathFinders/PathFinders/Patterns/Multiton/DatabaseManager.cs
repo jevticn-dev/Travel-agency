@@ -38,11 +38,12 @@ namespace PathFinders.Patterns.Multiton
 
         private static string GetDatabaseTypeFromConnection(string connectionString)
         {
-            if (connectionString.ToLower().Contains("mysql"))
+            string normalized = connectionString.ToLower();
+            if (normalized.Contains("server=") || normalized.Contains("uid=") || normalized.Contains("port="))
             {
                 return "mysql";
             }
-            if (connectionString.ToLower().Contains("data source"))
+            if (normalized.Contains("data source"))
             {
                 return "sqlite";
             }

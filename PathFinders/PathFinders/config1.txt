@@ -1,0 +1,2 @@
+Turisticka agencija "PathFinders"
+Server=localhost;Database=turisticka_agencija;Uid=root;Password=root;

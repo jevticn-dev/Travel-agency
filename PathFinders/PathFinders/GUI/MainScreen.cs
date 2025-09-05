@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using PathFinders.Services; // Add this using directive for IDatabaseService
 
 namespace PathFinders.GUI
 {
@@ -26,6 +27,27 @@ namespace PathFinders.GUI
         private TextBox txtPretraga;
         private readonly Size _baseClientSize;
 
+        // NEW: Fields to hold the agency name and database service instance
+        private readonly string _agencyName;
+        private readonly IDatabaseService _dbService;
+
+        // NEW: Constructor to be used by FormaIzborBaze
+        public MainScreen(string agencyName, IDatabaseService dbService) : this()
+        {
+            _agencyName = agencyName;
+            _dbService = dbService;
+
+            // Update the title and the logo label with the agency name from the config file
+            this.Text = _agencyName;
+            lblLogo.Text = _agencyName;
+
+            // TODO: Use _dbService to fetch data and populate the tables
+            // Example:
+            // PrikaziTabelu("Klijenti");
+            // OznaciDugme(btnKlijenti);
+        }
+
+        // Existing parameterless constructor (keep it for design purposes)
         public MainScreen()
         {
             // Forma
@@ -34,7 +56,7 @@ namespace PathFinders.GUI
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.White;
 
-            _baseClientSize = this.ClientSize;   // zapamti
+            _baseClientSize = this.ClientSize;
             this.MinimumSize = this.Size;
 
             // Sidebar
@@ -45,7 +67,7 @@ namespace PathFinders.GUI
 
             // Logo
             lblLogo = new Label();
-            lblLogo.Text = "Agencija";
+            lblLogo.Text = "Agencija"; // This will be replaced by the new constructor
             lblLogo.Font = new Font("Segoe UI", 16, FontStyle.Bold);
             lblLogo.ForeColor = Color.White;
             lblLogo.TextAlign = ContentAlignment.MiddleCenter;
@@ -56,7 +78,7 @@ namespace PathFinders.GUI
             indikator = new Panel();
             indikator.Size = new Size(5, 50);
             indikator.BackColor = Color.White;
-            indikator.Visible = false; // biće prikazan tek kada kliknemo na dugme
+            indikator.Visible = false;
             sidebar.Controls.Add(indikator);
 
             // Dugmad u sidebaru
@@ -95,11 +117,11 @@ namespace PathFinders.GUI
             };
             btnBackup.Click += (s, e) =>
             {
-                mainPanel.Controls.Clear(); 
+                mainPanel.Controls.Clear();
                 OznaciDugme(btnBackup);
             };
 
-            
+
             PrikaziTabelu("Klijenti");
             OznaciDugme(btnKlijenti);
         }
@@ -115,7 +137,7 @@ namespace PathFinders.GUI
             btn.ForeColor = Color.White;
             btn.FlatStyle = FlatStyle.Flat;
             btn.FlatAppearance.BorderSize = 0;
-            btn.UseVisualStyleBackColor = false; 
+            btn.UseVisualStyleBackColor = false;
 
             btn.Cursor = Cursors.Hand;
 
@@ -124,18 +146,18 @@ namespace PathFinders.GUI
 
         private void OznaciDugme(Button btn)
         {
-            
+
             foreach (Control c in sidebar.Controls)
             {
                 if (c is Button dugme)
                 {
-                    dugme.BackColor = Color.FromArgb(52, 73, 94); 
+                    dugme.BackColor = Color.FromArgb(52, 73, 94);
                     dugme.ForeColor = Color.White;
                 }
             }
 
-            
-            btn.BackColor = Color.FromArgb(41, 128, 185); 
+
+            btn.BackColor = Color.FromArgb(41, 128, 185);
             btn.ForeColor = Color.White;
             aktivnoDugme = btn;
 
@@ -170,7 +192,7 @@ namespace PathFinders.GUI
         {
             mainPanel.Controls.Clear();
 
-            
+
             var wrapper = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -178,7 +200,7 @@ namespace PathFinders.GUI
                 Padding = new Padding(12)
             };
 
-            
+
             var frame = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -186,7 +208,7 @@ namespace PathFinders.GUI
                 BorderStyle = BorderStyle.FixedSingle
             };
 
-            
+
             var topBar = new Panel
             {
                 Dock = DockStyle.Top,
@@ -194,7 +216,7 @@ namespace PathFinders.GUI
                 BackColor = Color.White
             };
 
-           
+
             Button btnDodaj = NapraviAkcijskoDugme("+ Dodaj", 10, 10);
             Button btnIzmeni = NapraviAkcijskoDugme("✎ Izmeni", 120, 10);
             Button btnUndo = NapraviAkcijskoDugme("↶ Undo", 230, 10);
@@ -206,7 +228,7 @@ namespace PathFinders.GUI
                 topBar.Controls.Add(btnOtkazi);
             }
 
-            
+
             TextBox txtPretraga = new TextBox
             {
                 PlaceholderText = $"Pretraga ({tip})...",
@@ -218,10 +240,10 @@ namespace PathFinders.GUI
             topBar.Controls.AddRange(new Control[] { btnDodaj, btnIzmeni, btnUndo, btnRedo, txtPretraga });
             topBar.Resize += (s, e) =>
             {
-                txtPretraga.Left = topBar.ClientSize.Width - txtPretraga.Width - 10; // 10px od desnog ruba
+                txtPretraga.Left = topBar.ClientSize.Width - txtPretraga.Width - 10;
             };
 
-            
+
             DataGridView dgv = new DataGridView
             {
                 Dock = DockStyle.Fill,
@@ -241,21 +263,21 @@ namespace PathFinders.GUI
                     SelectionBackColor = Color.LightGray,
                     SelectionForeColor = Color.Black
                 },
-                        AlternatingRowsDefaultCellStyle =
+                AlternatingRowsDefaultCellStyle =
                 {
                     BackColor = Color.FromArgb(245,245,245),
                     ForeColor = Color.Black
                 },
-                        AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None // koristimo fiksne širine po koloni
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None
             };
 
-            
+
             frame.Controls.Add(dgv);
             frame.Controls.Add(topBar);
             wrapper.Controls.Add(frame);
             mainPanel.Controls.Add(wrapper);
 
-            
+
             if (tip == "Klijenti")
             {
                 this.dgvKlijenti = dgv;
@@ -267,7 +289,7 @@ namespace PathFinders.GUI
                 dgv.Columns.Add("Email", "Email");
                 dgv.Columns.Add("Telefon", "Telefon");
 
-                
+
                 dgv.Columns["Ime"].Width = 160;
                 dgv.Columns["Prezime"].Width = 170;
                 dgv.Columns["BrojPasosa"].Width = 120;
@@ -289,11 +311,17 @@ namespace PathFinders.GUI
                     }
                 };
 
-                
+
+                // TODO: Load data from the database using _dbService
+                //DataTable clients = _dbService.GetClients();
+                //foreach (DataRow row in clients.Rows)
+                //{
+                //    dgv.Rows.Add(row["Ime"], row["Prezime"], row["Broj_pasosa"], row["Datum_rodjenja"], row["Email_adresa"], row["Broj_telefona"]);
+                //}
                 dgv.Rows.Add("Bojan", "Kovarbasic", "123456789", "26.8.2024", "dugimejl.koji.je.dug@primerdomena.rs", "062123456");
                 dgv.Rows.Add("Bojana", "Kovarbasic", "123456789", "26-Aug-24", "mail1@gmail.com", "062123456");
 
-               
+
                 btnDodaj.Click += (s, e) =>
                 {
                     var forma = new FormaNoviKlijent();
@@ -306,7 +334,7 @@ namespace PathFinders.GUI
                     }
                 };
 
-                
+
                 btnIzmeni.Click += (s, e) =>
                 {
                     if (dgv.SelectedRows.Count == 0)
@@ -344,27 +372,27 @@ namespace PathFinders.GUI
                     ukupnaSirinaKolona += col.Width;
                 }
 
-                
+
                 ukupnaSirinaKolona += 60;
 
-                
-                this.FormBorderStyle = FormBorderStyle.FixedSingle; 
-                this.MaximizeBox = false;                           
+
+                this.FormBorderStyle = FormBorderStyle.FixedSingle;
+                this.MaximizeBox = false;
                 this.ClientSize = new Size(ukupnaSirinaKolona + sidebar.Width, this.ClientSize.Height);
             }
             else if (tip == "Paketi")
             {
-                
+
                 var paketiHost = new Panel
                 {
                     Dock = DockStyle.Fill,
                     BackColor = Color.White
                 };
-                frame.Controls.Remove(dgv); 
+                frame.Controls.Remove(dgv);
                 frame.Controls.Add(paketiHost);
                 paketiHost.BringToFront();
 
-                
+
                 var cboTip = new ComboBox
                 {
                     DropDownStyle = ComboBoxStyle.DropDownList,
@@ -373,20 +401,20 @@ namespace PathFinders.GUI
                 };
                 topBar.Controls.Add(cboTip);
 
-                
+
                 topBar.Resize += (s, e2) =>
                 {
                     txtPretraga.Left = topBar.ClientSize.Width - txtPretraga.Width - 10;
                     cboTip.Left = txtPretraga.Left - cboTip.Width - 10;
                 };
-                
+
                 txtPretraga.Left = topBar.ClientSize.Width - txtPretraga.Width - 10;
                 cboTip.Left = txtPretraga.Left - cboTip.Width - 10;
 
-                
+
                 var tips = new[] { "Aranžman za more", "Aranžman za planine", "Ekskurzije", "Krstarenja" };
 
-                
+
                 var columnsByType = new Dictionary<string, (string name, int width, DataGridViewAutoSizeColumnMode mode)[]>
                 {
                     ["Aranžman za more"] = new[]
@@ -427,7 +455,7 @@ namespace PathFinders.GUI
                     }
                 };
                 var grids = new Dictionary<string, DataGridView>();
-               
+
                 DataGridView MakeGrid((string name, int width, DataGridViewAutoSizeColumnMode mode)[] cols)
                 {
                     var g = new DataGridView
@@ -455,9 +483,9 @@ namespace PathFinders.GUI
                             ForeColor = Color.Black
                         },
                         AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None,
-                        Visible = false 
-                        };
-                    
+                        Visible = false
+                    };
+
                     foreach (var c in cols)
                     {
                         var col = new DataGridViewTextBoxColumn
@@ -469,7 +497,7 @@ namespace PathFinders.GUI
                         if (c.mode == DataGridViewAutoSizeColumnMode.None) col.Width = c.width;
                         g.Columns.Add(col);
                     }
-                    
+
                     g.CellClick += (ss, ee) =>
                     {
                         if (ee.RowIndex >= 0)
@@ -483,8 +511,8 @@ namespace PathFinders.GUI
                     return g;
                 }
 
-                
-                
+
+
                 foreach (var t in tips)
                 {
                     var g = MakeGrid(columnsByType[t]);
@@ -493,21 +521,21 @@ namespace PathFinders.GUI
                     g.BringToFront();
                 }
 
-                
+
                 cboTip.Items.AddRange(tips);
                 if (cboTip.Items.Count > 0) cboTip.SelectedIndex = 0;
 
-                
+
                 void ShowType(string type)
                 {
                     foreach (var kv in grids)
                         kv.Value.Visible = (kv.Key == type);
                 }
 
-                
+
                 ShowType((string)cboTip.SelectedItem);
 
-                
+
                 cboTip.SelectedIndexChanged += (s, e2) =>
                 {
                     var tsel = (string)cboTip.SelectedItem;
@@ -522,7 +550,7 @@ namespace PathFinders.GUI
                 };
 
                 // --- DEMO podaci (upis direktno u odgovarajuće kolone) ---
-                
+
                 grids["Aranžman za more"].Rows.Add("Krf - leto 2026", "599€", "Aranžman za more", "Krf", "Hotel 4*", "Avion");
                 // planine
                 grids["Aranžman za planine"].Rows.Add("Kopaonik vikend", "199€", "Aranžman za planine", "Kopaonik", "Apartman", "Ski pass");
@@ -531,16 +559,16 @@ namespace PathFinders.GUI
                 // krstarenja
                 grids["Krstarenja"].Rows.Add("Jadransko krstarenje", "1299€", "Krstarenja", "MSC Opera", "Split–Kotor–Krf–Bari", new DateTime(2026, 6, 15).ToString("dd.MM.yyyy"));
 
-                
+
                 DataGridView CurrentGrid() => grids[(string)cboTip.SelectedItem];
 
-                
+
                 btnDodaj.Click += (s, e2) =>
                 {
                     var forma = new FormaNoviPaket();
                     if (forma.ShowDialog() == DialogResult.OK)
                     {
-                        
+
                         var tipPaketa = forma.Tip;
 
                         if (tipPaketa == "Aranžman za more")
@@ -552,15 +580,15 @@ namespace PathFinders.GUI
                         else if (tipPaketa == "Krstarenja")
                             grids[tipPaketa].Rows.Add(forma.Naziv, forma.Cena, tipPaketa, forma.Brod, forma.Ruta, forma.DatumPolaska.HasValue ? forma.DatumPolaska.Value.ToString("dd.MM.yyyy") : "");
 
-                        
+
                         cboTip.SelectedItem = tipPaketa;
                     }
                 };
 
-                
+
                 btnIzmeni.Click += (s, e2) =>
                 {
-                   
+
                     DataGridView fromGrid = null;
                     DataGridViewRow row = null;
                     foreach (var kv in grids)
@@ -657,7 +685,7 @@ namespace PathFinders.GUI
 
                     if (forma.ShowDialog() != DialogResult.OK) return;
 
-                    
+
                     string noviTip = forma.Tip;
 
                     // Pripremi podatke po tipovima
@@ -751,7 +779,7 @@ namespace PathFinders.GUI
                     }
                 };
 
-                
+
                 txtPretraga.TextChanged += (s, e2) =>
                 {
                     var g = CurrentGrid();
@@ -773,10 +801,10 @@ namespace PathFinders.GUI
             }
             else if (tip == "Rezervacije")
             {
-                
+
                 txtPretraga.Visible = false;
 
-                
+
                 var cboKlijent = new ComboBox
                 {
                     DropDownStyle = ComboBoxStyle.DropDownList,
@@ -788,12 +816,12 @@ namespace PathFinders.GUI
                 cboKlijent.SelectedIndex = 0;
                 topBar.Controls.Add(cboKlijent);
 
-                
+
                 topBar.Resize += (s, e2) =>
                 {
                     cboKlijent.Left = topBar.ClientSize.Width - cboKlijent.Width - 10;
                 };
-                
+
                 cboKlijent.Left = topBar.ClientSize.Width - cboKlijent.Width - 10;
 
                 dgv.Columns.Add("Paket", "Paket");
@@ -801,7 +829,7 @@ namespace PathFinders.GUI
                 dgv.Columns.Add("DatumRez", "Datum rezervacije");
                 dgv.Columns.Add("Destinacija", "Destinacija");
 
-                
+
                 var colKlijent = new DataGridViewTextBoxColumn
                 {
                     Name = "Klijent",
@@ -810,24 +838,24 @@ namespace PathFinders.GUI
                 };
                 dgv.Columns.Add(colKlijent);
 
-                
+
                 dgv.Columns["Paket"].Width = 260;
                 dgv.Columns["BrojOsoba"].Width = 140;
                 dgv.Columns["DatumRez"].Width = 220;
                 dgv.Columns["Destinacija"].MinimumWidth = 260;
                 dgv.Columns["Destinacija"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
 
-                
+
                 dgv.Rows.Add("Grčka - Letovanje", 2, "12.07.2025", "Krf", "Bojan Kovarbasic");
                 dgv.Rows.Add("Kopaonik - Zimovanje", 4, "15.01.2026", "Kopaonik", "Bojana Kovarbasic");
 
 
-                
+
                 dgv.CellClick += (s2, e2) =>
                 {
                     if (e2.RowIndex >= 0)
                     {
-                        
+
                         dgv.ClearSelection();
                         dgv.Rows[e2.RowIndex].Selected = true;
                     }
@@ -857,7 +885,7 @@ namespace PathFinders.GUI
                         r.Visible = string.Equals(klijent, sel, StringComparison.OrdinalIgnoreCase);
                     }
 
-                    
+
                     dgv.ClearSelection();
                     dgv.CurrentCell = null;
                 };
@@ -887,4 +915,3 @@ namespace PathFinders.GUI
     }
 
 }
-
