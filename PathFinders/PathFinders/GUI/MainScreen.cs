@@ -25,6 +25,7 @@ namespace PathFinders.GUI
         private Button btnDodaj, btnIzmeni, btnUndo, btnRedo;
         private TextBox txtPretraga;
 
+
         public MainScreen()
         {
             // Forma
@@ -527,6 +528,7 @@ namespace PathFinders.GUI
 
                 
                 dgv.Rows.Add("Pera", "Perić", "Grčka - Letovanje", "12.7.2025", "Potvrđeno");
+                dgv.Rows.Add("Marija", "Marić", "Kopaonik - Zimovanje", "15.1.2026", "Na čekanju");
 
                 btnDodaj.Click += (s, e) =>
                 {
@@ -537,6 +539,53 @@ namespace PathFinders.GUI
                             forma.Ime, forma.Prezime, forma.Paket,
                             forma.Datum.ToShortDateString(), forma.Status
                         );
+                    }
+                };
+
+                btnIzmeni.Click += (s, e) => {
+                    if (dgv.SelectedRows.Count == 0)
+                    {
+                        MessageBox.Show("Prvo izaberi rezervaciju u tabeli.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+
+                    var selectedRow = dgv.SelectedRows[0];
+                    string ime = selectedRow.Cells["Ime"].Value?.ToString() ?? "";
+                    string prezime = selectedRow.Cells["Prezime"].Value?.ToString() ?? "";
+                    string paket = selectedRow.Cells["Paket"].Value?.ToString() ?? "";
+                    string status = selectedRow.Cells["Status"].Value?.ToString() ?? "";
+                    DateTime datum;
+                    if (!DateTime.TryParse(selectedRow.Cells["Datum"].Value?.ToString(), out datum))
+                    {
+                        datum = DateTime.Today;
+                    }
+
+                    var forma = new FormaIzmenaRezervacije(ime, prezime, paket, datum, status);
+                    if (forma.ShowDialog() == DialogResult.OK)
+                    {
+                        // Ažuriraj odabrani red sa novim podacima
+                        selectedRow.Cells["Ime"].Value = forma.Ime;
+                        selectedRow.Cells["Prezime"].Value = forma.Prezime;
+                        selectedRow.Cells["Paket"].Value = forma.Paket;
+                        selectedRow.Cells["Datum"].Value = forma.Datum.ToShortDateString();
+                        selectedRow.Cells["Status"].Value = forma.Status;
+                    }
+                };
+
+                // Dodajemo handler za dugme Obrisi
+                btnOtkazi.Click += (s, e) => {
+                    if (dgv.SelectedRows.Count == 0)
+                    {
+                        MessageBox.Show("Prvo izaberi rezervaciju u tabeli.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+
+                    var result = MessageBox.Show("Da li ste sigurni da želite da otkažete ovu rezervaciju?", "Potvrda otkazivanja", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+
+                    if (result == DialogResult.Yes)
+                    {
+                        // Ukloni odabrani red iz DataGridView
+                        dgv.Rows.Remove(dgv.SelectedRows[0]);
                     }
                 };
             }
