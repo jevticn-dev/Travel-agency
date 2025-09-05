@@ -1,123 +1,105 @@
 ﻿using System;
 using System.Drawing;
+using System.IO.Packaging;
 using System.Windows.Forms;
+using PathFinders.Models;
+using PathFinders.GUI;
 
 public class FormaNovaRezervacija : Form
 {
-    // Kontrole za unos
-    private Label lblIme, lblPrezime, lblPaket, lblDatum, lblStatus;
-    private TextBox txtIme, txtPrezime;
-    private ComboBox cmbPaket, cmbStatus;
-    private DateTimePicker dtpDatum;
-    private Button btnSacuvaj, btnOdustani;
+    private Label lblPaket;
+    private TextBox txtPaket;
+    private Button btnIzbor;
 
-    // Svojstva koja će čuvati unete podatke
-    public string Ime { get; private set; }
-    public string Prezime { get; private set; }
-    public string Paket { get; private set; }
-    public DateTime Datum { get; private set; }
-    public string Status { get; private set; }
+    private Label lblBrojOsoba;
+    private NumericUpDown numBroj;
+
+    private Button btnDodaj;
+    private Button btnOdustani;
+
+    // NEMA Package; koristimo SelectedPackage iz FormaIzborPaketa:
+    private FormaIzborPaketa.SelectedPackage _izabrani;
+
+    public class RezervacijaResult
+    {
+        public string PaketPrikaz { get; set; }
+        public string Destinacija { get; set; }
+        public int BrojOsoba { get; set; }
+        public DateTime DatumRezervacije { get; set; }
+    }
+
+    public RezervacijaResult Rezultat { get; private set; }
 
     public FormaNovaRezervacija()
     {
-        this.Text = "Nova Rezervacija";
-        this.Size = new Size(400, 350);
-        this.StartPosition = FormStartPosition.CenterParent;
-        this.BackColor = Color.White;
-        this.FormBorderStyle = FormBorderStyle.FixedDialog;
-        this.MaximizeBox = false;
-        this.MinimizeBox = false;
+        Text = "Dodavanje rezervacije";
+        StartPosition = FormStartPosition.CenterParent;
+        Size = new Size(600, 240);
+        BackColor = Color.White;
 
-        // Inicijalizacija i postavljanje kontrola
-        int y = 20;
+        lblPaket = new Label { Text = "Izaberi paket:", Left = 12, Top = 20, AutoSize = true };
+        Controls.Add(lblPaket);
 
-        lblIme = NapraviLabelu("Ime:", 20, y);
-        txtIme = NapraviTextBox(150, y);
-
-        lblPrezime = NapraviLabelu("Prezime:", 20, y += 40);
-        txtPrezime = NapraviTextBox(150, y);
-
-        lblPaket = NapraviLabelu("Paket:", 20, y += 40);
-        cmbPaket = new ComboBox { Location = new Point(150, y), Size = new Size(200, 25) };
-        cmbPaket.Items.AddRange(new string[] { "Letovanje - Grčka", "Zimovanje - Kopaonik", "Vikend u Pragu" }); // Primeri paketa
-
-        lblDatum = NapraviLabelu("Datum:", 20, y += 40);
-        dtpDatum = new DateTimePicker
+        txtPaket = new TextBox
         {
-            Location = new Point(150, y),
-            Size = new Size(200, 25),
-            Format = DateTimePickerFormat.Short
+            Left = 12,
+            Top = 44,
+            Width = 420,
+            ReadOnly = true
+            // Ako PlaceholderText baca grešku na tvom .NET-u, samo izostavi:
+            // PlaceholderText = "Vaš paket"
         };
+        Controls.Add(txtPaket);
 
-        lblStatus = NapraviLabelu("Status:", 20, y += 40);
-        cmbStatus = new ComboBox { Location = new Point(150, y), Size = new Size(200, 25) };
-        cmbStatus.Items.AddRange(new string[] { "Potvrđeno", "Na čekanju", "Otkazano" });
-        cmbStatus.SelectedIndex = 0;
+        btnIzbor = new Button { Text = "Izbor", Left = 440, Top = 42, Width = 120 };
+        btnIzbor.Click += (s, e) => OnIzborPaketa();
+        Controls.Add(btnIzbor);
 
-        btnSacuvaj = NapraviDugme("Sačuvaj", 50, y + 60);
-        btnOdustani = NapraviDugme("Odustani", 200, y + 60);
+        lblBrojOsoba = new Label { Text = "Broj osoba:", Left = 12, Top = 94, AutoSize = true };
+        Controls.Add(lblBrojOsoba);
 
-        // Dodavanje kontrola na formu
-        this.Controls.AddRange(new Control[] {
-            lblIme, txtIme, lblPrezime, txtPrezime, lblPaket, cmbPaket,
-            lblDatum, dtpDatum, lblStatus, cmbStatus, btnSacuvaj, btnOdustani
-        });
+        numBroj = new NumericUpDown { Left = 12, Top = 118, Width = 120, Minimum = 1, Maximum = 1000, Value = 1 };
+        Controls.Add(numBroj);
 
-        // Event handler za dugmad
-        btnSacuvaj.Click += (s, e) => {
-            if (string.IsNullOrWhiteSpace(txtIme.Text) || string.IsNullOrWhiteSpace(txtPrezime.Text) || cmbPaket.SelectedItem == null)
+        btnDodaj = new Button { Text = "Dodaj rezervaciju", Left = 330, Top = 160, Width = 230 };
+        btnDodaj.Click += (s, e) => OnDodajRezervaciju();
+        Controls.Add(btnDodaj);
+
+        btnOdustani = new Button { Text = "Otkaži", Left = 220, Top = 160, Width = 100 };
+        btnOdustani.Click += (s, e) => DialogResult = DialogResult.Cancel;
+        Controls.Add(btnOdustani);
+    }
+
+    private void OnIzborPaketa()
+    {
+        using (var dlg = new FormaIzborPaketa())
+        {
+            if (dlg.ShowDialog(this) == DialogResult.OK)
             {
-                MessageBox.Show("Molimo popunite sva obavezna polja.", "Greška", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
+                _izabrani = dlg.Izabrani;
+                txtPaket.Text = _izabrani?.Display ?? "";
             }
-
-            this.Ime = txtIme.Text;
-            this.Prezime = txtPrezime.Text;
-            this.Paket = cmbPaket.SelectedItem.ToString();
-            this.Datum = dtpDatum.Value;
-            this.Status = cmbStatus.SelectedItem.ToString();
-
-            this.DialogResult = DialogResult.OK;
-            this.Close();
-        };
-
-        btnOdustani.Click += (s, e) => {
-            this.DialogResult = DialogResult.Cancel;
-            this.Close();
-        };
+        }
     }
 
-    // Pomoćne metode
-    private Label NapraviLabelu(string tekst, int x, int y)
+    private void OnDodajRezervaciju()
     {
-        return new Label
+        if (_izabrani == null)
         {
-            Text = tekst,
-            Location = new Point(x, y),
-            Font = new Font("Segoe UI", 9, FontStyle.Bold),
-            AutoSize = true
+            MessageBox.Show("Najpre izaberi paket.", "Info",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        Rezultat = new RezervacijaResult
+        {
+            PaketPrikaz = _izabrani.Display,
+            Destinacija = _izabrani.Destinacija,
+            BrojOsoba = (int)numBroj.Value,
+            DatumRezervacije = DateTime.Today
         };
+
+        DialogResult = DialogResult.OK;
     }
 
-    private TextBox NapraviTextBox(int x, int y)
-    {
-        return new TextBox
-        {
-            Location = new Point(x, y),
-            Size = new Size(200, 25)
-        };
-    }
-
-    private Button NapraviDugme(string tekst, int x, int y)
-    {
-        return new Button
-        {
-            Text = tekst,
-            Location = new Point(x, y),
-            Size = new Size(120, 35),
-            BackColor = Color.FromArgb(41, 128, 185),
-            ForeColor = Color.White,
-            FlatStyle = FlatStyle.Flat
-        };
-    }
 }

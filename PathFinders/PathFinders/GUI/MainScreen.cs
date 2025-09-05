@@ -828,7 +828,11 @@ namespace PathFinders.GUI
                 dgv.Columns.Add("BrojOsoba", "Broj osoba");
                 dgv.Columns.Add("DatumRez", "Datum rezervacije");
                 dgv.Columns.Add("Destinacija", "Destinacija");
-
+                dgv.Columns["Paket"].Width = 400;                 
+                dgv.Columns["BrojOsoba"].Width = 120;
+                dgv.Columns["DatumRez"].Width = 140;
+                dgv.Columns["Paket"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                dgv.Columns["Destinacija"].Width = 200;
 
                 var colKlijent = new DataGridViewTextBoxColumn
                 {
@@ -910,6 +914,67 @@ namespace PathFinders.GUI
                         dgv.Rows.Remove(dgv.SelectedRows[0]);
                     }
                 };
+
+                btnDodaj.Click += (s, e2) =>
+                {
+                    using (var dlg = new FormaNovaRezervacija())
+                    {
+                        if (dlg.ShowDialog(this) == DialogResult.OK)
+                        {
+                            var r = dlg.Rezultat;
+                            dgv.Rows.Add(
+                                r.PaketPrikaz,
+                                r.BrojOsoba,
+                                r.DatumRezervacije.ToString("dd.MM.yyyy"),
+                                r.Destinacija,
+                                cboKlijent.SelectedItem?.ToString() ?? ""
+                            );
+                            ApplyFilter();
+                            if (dgv.Rows.Count > 0)
+                            {
+                                dgv.ClearSelection();
+                                var last = dgv.Rows[dgv.Rows.Count - 1];
+                                if (last.Visible)
+                                {
+                                    last.Selected = true;
+                                    dgv.CurrentCell = last.Cells["Paket"];
+                                }
+                            }
+                        }
+                    }
+                };
+
+                btnIzmeni.Click += (s, e) =>
+                {
+                    if (dgv.SelectedRows.Count == 0)
+                    {
+                        MessageBox.Show("Prvo izaberite rezervaciju u tabeli.", "Info",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+
+                    var row = dgv.SelectedRows[0];
+
+                    // Bezbedno parsiraj postojeći broj osoba
+                    int stariBroj = 1;
+                    var cellVal = row.Cells["BrojOsoba"].Value?.ToString() ?? "1";
+                    int.TryParse(cellVal, out stariBroj);
+                    if (stariBroj < 1) stariBroj = 1;
+
+                    using (var dlg = new FormaIzmenaRezervacije(stariBroj))
+                    {
+                        if (dlg.ShowDialog(this) == DialogResult.OK)
+                        {
+                            row.Cells["BrojOsoba"].Value = dlg.NoviBrojOsoba;
+
+                            // (opciono) ostavi selekciju na istom redu
+                            dgv.ClearSelection();
+                            row.Selected = true;
+                            dgv.CurrentCell = row.Cells["BrojOsoba"];
+                        }
+                    }
+                };
+
             }
         }
     }

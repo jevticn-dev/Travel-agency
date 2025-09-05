@@ -4,125 +4,42 @@ using System.Windows.Forms;
 
 public class FormaIzmenaRezervacije : Form
 {
-    // Kontrole za unos
-    private Label lblIme, lblPrezime, lblPaket, lblDatum, lblStatus;
-    private TextBox txtIme, txtPrezime;
-    private ComboBox cmbPaket, cmbStatus;
-    private DateTimePicker dtpDatum;
-    private Button btnSacuvaj, btnOdustani;
+    private Label lbl;
+    private NumericUpDown num;
+    private Button btnOk, btnCancel;
 
-    // Svojstva koja će čuvati izmenjene podatke
-    public string Ime { get; private set; }
-    public string Prezime { get; private set; }
-    public string Paket { get; private set; }
-    public DateTime Datum { get; private set; }
-    public string Status { get; private set; }
+    public int NoviBrojOsoba { get; private set; }
 
-    // Konstruktor koji prima podatke za popunjavanje forme
-    public FormaIzmenaRezervacije(string ime, string prezime, string paket, DateTime datum, string status)
+    public FormaIzmenaRezervacije(int trenutniBroj)
     {
-        this.Text = "Izmena Rezervacije";
-        this.Size = new Size(400, 350);
-        this.StartPosition = FormStartPosition.CenterParent;
-        this.BackColor = Color.White;
-        this.FormBorderStyle = FormBorderStyle.FixedDialog;
-        this.MaximizeBox = false;
-        this.MinimizeBox = false;
+        Text = "Izmena broja osoba";
+        StartPosition = FormStartPosition.CenterParent;
+        Size = new Size(360, 160);
+        FormBorderStyle = FormBorderStyle.FixedDialog;
+        MaximizeBox = false;
+        MinimizeBox = false;
+        BackColor = Color.White;
 
-        // Inicijalizacija i postavljanje kontrola
-        int y = 20;
+        lbl = new Label { Left = 12, Top = 18, AutoSize = true, Text = "Broj osoba:" };
+        Controls.Add(lbl);
 
-        lblIme = NapraviLabelu("Ime:", 20, y);
-        txtIme = NapraviTextBox(150, y);
-        txtIme.Text = ime;
-
-        lblPrezime = NapraviLabelu("Prezime:", 20, y += 40);
-        txtPrezime = NapraviTextBox(150, y);
-        txtPrezime.Text = prezime;
-
-        lblPaket = NapraviLabelu("Paket:", 20, y += 40);
-        cmbPaket = new ComboBox { Location = new Point(150, y), Size = new Size(200, 25) };
-        cmbPaket.Items.AddRange(new string[] { "Grčka - Letovanje", "Kopaonik - Zimovanje", "Pariz - Ekskurzija", "Jadransko krstarenje" });
-        cmbPaket.SelectedItem = paket;
-
-        lblDatum = NapraviLabelu("Datum:", 20, y += 40);
-        dtpDatum = new DateTimePicker
+        num = new NumericUpDown
         {
-            Location = new Point(150, y),
-            Size = new Size(200, 25),
-            Format = DateTimePickerFormat.Short
+            Left = 12,
+            Top = 42,
+            Width = 120,
+            Minimum = 1,
+            Maximum = 1000,
+            Value = Math.Max(1, Math.Min(trenutniBroj, 1000))
         };
-        dtpDatum.Value = datum;
+        Controls.Add(num);
 
-        lblStatus = NapraviLabelu("Status:", 20, y += 40);
-        cmbStatus = new ComboBox { Location = new Point(150, y), Size = new Size(200, 25) };
-        cmbStatus.Items.AddRange(new string[] { "Potvrđeno", "Na čekanju", "Otkazano" });
-        cmbStatus.SelectedItem = status;
+        btnOk = new Button { Text = "Sačuvaj", Left = 180, Top = 42, Width = 75 };
+        btnOk.Click += (s, e) => { NoviBrojOsoba = (int)num.Value; DialogResult = DialogResult.OK; };
+        Controls.Add(btnOk);
 
-        btnSacuvaj = NapraviDugme("Sačuvaj", 50, y + 60);
-        btnOdustani = NapraviDugme("Odustani", 200, y + 60);
-
-        // Dodavanje kontrola na formu
-        this.Controls.AddRange(new Control[] {
-            lblIme, txtIme, lblPrezime, txtPrezime, lblPaket, cmbPaket,
-            lblDatum, dtpDatum, lblStatus, cmbStatus, btnSacuvaj, btnOdustani
-        });
-
-        // Event handler-i za dugmad
-        btnSacuvaj.Click += (s, e) => {
-            if (string.IsNullOrWhiteSpace(txtIme.Text) || string.IsNullOrWhiteSpace(txtPrezime.Text) || cmbPaket.SelectedItem == null)
-            {
-                MessageBox.Show("Molimo popunite sva obavezna polja.", "Greška", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            this.Ime = txtIme.Text;
-            this.Prezime = txtPrezime.Text;
-            this.Paket = cmbPaket.SelectedItem.ToString();
-            this.Datum = dtpDatum.Value;
-            this.Status = cmbStatus.SelectedItem.ToString();
-
-            this.DialogResult = DialogResult.OK;
-            this.Close();
-        };
-
-        btnOdustani.Click += (s, e) => {
-            this.DialogResult = DialogResult.Cancel;
-            this.Close();
-        };
-    }
-
-    // Pomoćne metode za kreiranje kontrola
-    private Label NapraviLabelu(string tekst, int x, int y)
-    {
-        return new Label
-        {
-            Text = tekst,
-            Location = new Point(x, y),
-            Font = new Font("Segoe UI", 9, FontStyle.Bold),
-            AutoSize = true
-        };
-    }
-
-    private TextBox NapraviTextBox(int x, int y)
-    {
-        return new TextBox
-        {
-            Location = new Point(x, y),
-            Size = new Size(200, 25)
-        };
-    }
-
-    private Button NapraviDugme(string tekst, int x, int y)
-    {
-        return new Button
-        {
-            Text = tekst,
-            Location = new Point(x, y),
-            Size = new Size(120, 35),
-            BackColor = Color.FromArgb(41, 128, 185),
-            ForeColor = Color.White,
-            FlatStyle = FlatStyle.Flat
-        };
+        btnCancel = new Button { Text = "Otkaži", Left = 260, Top = 42, Width = 75 };
+        btnCancel.Click += (s, e) => DialogResult = DialogResult.Cancel;
+        Controls.Add(btnCancel);
     }
 }
