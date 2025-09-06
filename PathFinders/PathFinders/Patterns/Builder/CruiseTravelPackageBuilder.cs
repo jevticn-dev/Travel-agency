@@ -48,5 +48,11 @@ namespace PathFinders.Patterns.Builder
             };
             _package.Details = JsonConvert.SerializeObject(details);
         }
+
+        // This method now populates the DestinationName on the package, which is used to get the ID.
+        public override void BuildDestinationName(string destinationName)
+        {
+            _package.DestinationName = destinationName;
+        }
     }
 }

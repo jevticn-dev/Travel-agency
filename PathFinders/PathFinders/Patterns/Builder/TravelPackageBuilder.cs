@@ -25,5 +25,6 @@ namespace PathFinders.Patterns.Builder
         public abstract void BuildPrice(decimal price);
         public abstract void BuildType();
         public abstract void BuildDetails();
+        public abstract void BuildDestinationName(string destinationName);
     }
 }
