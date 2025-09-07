@@ -46,7 +46,7 @@ namespace PathFinders.Services
                     ID INTEGER PRIMARY KEY AUTOINCREMENT,
                     Ime TEXT NOT NULL,
                     Prezime TEXT NOT NULL,
-                    Broj_pasosa BLOB UNIQUE NOT NULL,
+                    Broj_pasosa TEXT UNIQUE NOT NULL,
                     Datum_rodjenja TEXT,
                     Email_adresa TEXT,
                     Broj_telefona TEXT
@@ -125,7 +125,7 @@ namespace PathFinders.Services
                 var command = new SQLiteCommand(query, connection);
                 command.Parameters.AddWithValue("@ime", client.FirstName);
                 command.Parameters.AddWithValue("@prezime", client.LastName);
-                command.Parameters.AddWithValue("@passos", PasswordHasher.HashPassword(client.PassportNumber));
+                command.Parameters.AddWithValue("@passos", PassportEncryptor.Encrypt(client.PassportNumber)); // Corrected
                 command.Parameters.AddWithValue("@datumRodjenja", client.DateOfBirth.ToString("yyyy-MM-dd"));
                 command.Parameters.AddWithValue("@email", client.Email);
                 command.Parameters.AddWithValue("@telefon", client.PhoneNumber);
@@ -196,7 +196,7 @@ namespace PathFinders.Services
             using (var connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
-                var adapter = new SQLiteDataAdapter("SELECT ID, Ime, Prezime, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients", connection);
+                var adapter = new SQLiteDataAdapter("SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients", connection); // Corrected
                 var dataTable = new DataTable();
                 adapter.Fill(dataTable);
                 return dataTable;
@@ -302,7 +302,7 @@ namespace PathFinders.Services
             {
                 connection.Open();
                 var command = new SQLiteCommand("SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients WHERE Broj_pasosa = @passportHash", connection);
-                command.Parameters.AddWithValue("@passportHash", PasswordHasher.HashPassword(passportNumber));
+                command.Parameters.AddWithValue("@passportHash", PassportEncryptor.Encrypt(passportNumber)); // Corrected
 
                 using (var reader = command.ExecuteReader())
                 {
@@ -313,7 +313,7 @@ namespace PathFinders.Services
                             Id = reader.GetInt32(0),
                             FirstName = reader.GetString(1),
                             LastName = reader.GetString(2),
-                            PassportNumber = passportNumber,
+                            PassportNumber = passportNumber, // Use the provided passport number
                             DateOfBirth = DateTime.Parse(reader.GetString(4)),
                             Email = reader.GetString(5),
                             PhoneNumber = reader.GetString(6)
@@ -382,9 +382,10 @@ namespace PathFinders.Services
             using (var connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
-                var command = new SQLiteCommand("UPDATE Clients SET Ime = @ime, Prezime = @prezime, Datum_rodjenja = @datumRodjenja, Email_adresa = @email, Broj_telefona = @telefon WHERE ID = @id", connection);
+                var command = new SQLiteCommand("UPDATE Clients SET Ime = @ime, Prezime = @prezime, Broj_pasosa = @passos, Datum_rodjenja = @datumRodjenja, Email_adresa = @email, Broj_telefona = @telefon WHERE ID = @id", connection); // Corrected
                 command.Parameters.AddWithValue("@ime", client.FirstName);
                 command.Parameters.AddWithValue("@prezime", client.LastName);
+                command.Parameters.AddWithValue("@passos", PassportEncryptor.Encrypt(client.PassportNumber)); // Corrected
                 command.Parameters.AddWithValue("@datumRodjenja", client.DateOfBirth.ToString("yyyy-MM-dd"));
                 command.Parameters.AddWithValue("@email", client.Email);
                 command.Parameters.AddWithValue("@telefon", client.PhoneNumber);
