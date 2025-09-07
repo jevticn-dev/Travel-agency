@@ -116,20 +116,62 @@ namespace PathFinders.Services
             }
         }
 
+        //public DataTable GetClientByName(string firstName, string lastName)
+        //{
+        //    using (var connection = new SQLiteConnection(_connectionString))
+        //    {
+        //        connection.Open();
+        //        var query = "SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients WHERE Ime LIKE @firstName OR Prezime LIKE @lastName";
+        //        var adapter = new SQLiteDataAdapter(query, connection);
+        //        adapter.SelectCommand.Parameters.AddWithValue("@firstName", $"%{firstName}%");
+        //        adapter.SelectCommand.Parameters.AddWithValue("@lastName", $"%{lastName}%");
+        //        var dataTable = new DataTable();
+        //        adapter.Fill(dataTable);
+        //        return dataTable;
+        //    }
+        //}
         public DataTable GetClientByName(string firstName, string lastName)
         {
             using (var connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
-                var query = "SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients WHERE Ime LIKE @firstName OR Prezime LIKE @lastName";
-                var adapter = new SQLiteDataAdapter(query, connection);
-                adapter.SelectCommand.Parameters.AddWithValue("@firstName", $"%{firstName}%");
-                adapter.SelectCommand.Parameters.AddWithValue("@lastName", $"%{lastName}%");
+
+                var sb = new StringBuilder();
+                sb.Append("SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients");
+
+                var cmd = new SQLiteCommand();
+                cmd.Connection = connection;
+
+                if (!string.IsNullOrWhiteSpace(firstName) && !string.IsNullOrWhiteSpace(lastName))
+                {
+                    // Ime + prezime → AND
+                    sb.Append(" WHERE Ime LIKE @firstName AND Prezime LIKE @lastName");
+                    cmd.Parameters.AddWithValue("@firstName", $"%{firstName}%");
+                    cmd.Parameters.AddWithValue("@lastName", $"%{lastName}%");
+                }
+                else if (!string.IsNullOrWhiteSpace(firstName))
+                {
+                    // Samo ime → pretraga i po imenu i po prezimenu
+                    sb.Append(" WHERE Ime LIKE @first OR Prezime LIKE @first");
+                    cmd.Parameters.AddWithValue("@first", $"%{firstName}%");
+                }
+                else if (!string.IsNullOrWhiteSpace(lastName))
+                {
+                    // Samo prezime
+                    sb.Append(" WHERE Ime LIKE @last OR Prezime LIKE @last");
+                    cmd.Parameters.AddWithValue("@last", $"%{lastName}%");
+                }
+                // ako su oba prazna → nema WHERE → vrati sve
+
+                cmd.CommandText = sb.ToString();
+
+                var adapter = new SQLiteDataAdapter(cmd);
                 var dataTable = new DataTable();
                 adapter.Fill(dataTable);
                 return dataTable;
             }
         }
+
 
         public void AddClient(Client client)
         {

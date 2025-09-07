@@ -2,12 +2,15 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using PathFinders.Patterns.Facade;
 using PathFinders.Services; // Add this using directive for IDatabaseService
+using PathFinders.Models;
 
 namespace PathFinders.GUI
 {
@@ -28,29 +31,21 @@ namespace PathFinders.GUI
         private TextBox txtPretraga;
         private readonly Size _baseClientSize;
 
-        // NEW: Fields to hold the agency name and database service instance
+        
         private readonly string _agencyName;
         private readonly IDatabaseService _dbService;
+        private readonly TravelAgencyFacade _facade;
 
-        // NEW: Constructor to be used by FormaIzborBaze
-        public MainScreen(string agencyName, IDatabaseService dbService) : this()
+        public MainScreen(string agencyName, IDatabaseService dbService)
         {
+            
             _agencyName = agencyName;
             _dbService = dbService;
-
-            // Update the title and the logo label with the agency name from the config file
+            _facade = new TravelAgencyFacade(_dbService);
+            
             this.Text = _agencyName;
-            lblLogo.Text = _agencyName;
-
-            // TODO: Use _dbService to fetch data and populate the tables
-            // Example:
-            // PrikaziTabelu("Klijenti");
-            // OznaciDugme(btnKlijenti);
-        }
-
-        // Existing parameterless constructor (keep it for design purposes)
-        public MainScreen()
-        {
+            
+       
             // Forma
             this.Text = "Moja Turistička Agencija";
             this.Size = new Size(1300, 600);
@@ -68,7 +63,7 @@ namespace PathFinders.GUI
 
             // Logo
             lblLogo = new Label();
-            lblLogo.Text = "Agencija"; // This will be replaced by the new constructor
+            lblLogo.Text = _agencyName; 
             lblLogo.Font = new Font("Segoe UI", 16, FontStyle.Bold);
             lblLogo.ForeColor = Color.White;
             lblLogo.TextAlign = ContentAlignment.MiddleCenter;
@@ -136,6 +131,8 @@ namespace PathFinders.GUI
             OznaciDugme(btnKlijenti);
         }
 
+       
+
         private Button NapraviDugme(string text, int top)
         {
             Button btn = new Button();
@@ -198,6 +195,67 @@ namespace PathFinders.GUI
             return btn;
         }
 
+        private async Task LoadClientsAsync()
+        {
+            //dgvKlijenti.Rows.Clear();
+            //var clients = await _facade.GetClientsAsync();
+
+            //foreach (var c in clients)
+            //{
+
+            //    dgvKlijenti.Rows.Add(
+            //        c.Id,
+            //        c.FirstName,
+            //        c.LastName,
+            //        c.PassportNumber,
+            //        c.DateOfBirth.ToShortDateString(),
+            //        c.Email,
+            //        c.PhoneNumber
+            //    );
+            //}
+
+            dgvKlijenti.Rows.Clear();
+
+            var clients = await _facade.GetClientsAsync();
+            foreach (var c in clients)
+            {
+                int rowIndex = dgvKlijenti.Rows.Add();
+                var row = dgvKlijenti.Rows[rowIndex];
+
+                row.Cells["ID"].Value = c.Id; // <- ključno
+                row.Cells["Ime"].Value = c.FirstName;
+                row.Cells["Prezime"].Value = c.LastName;
+                row.Cells["BrojPasosa"].Value = c.PassportNumber;
+                row.Cells["DatumRodjenja"].Value = c.DateOfBirth.ToShortDateString();
+                row.Cells["Email"].Value = c.Email;
+                row.Cells["Telefon"].Value = c.PhoneNumber;
+            }
+
+        }
+
+        private void PopulateClientsGrid(IEnumerable<Client> clients)
+        {
+            dgvKlijenti.Rows.Clear();
+
+            foreach (var c in clients)
+            {
+                int rowIndex = dgvKlijenti.Rows.Add();
+                var row = dgvKlijenti.Rows[rowIndex];
+
+                row.Cells["ID"].Value = c.Id;
+                row.Cells["Ime"].Value = c.FirstName;
+                row.Cells["Prezime"].Value = c.LastName;
+                row.Cells["BrojPasosa"].Value = c.PassportNumber;
+                row.Cells["DatumRodjenja"].Value = c.DateOfBirth.ToShortDateString();
+                row.Cells["Email"].Value = c.Email;
+                row.Cells["Telefon"].Value = c.PhoneNumber;
+            }
+
+            dgvKlijenti.ClearSelection();
+            dgvKlijenti.CurrentCell = null;
+        }
+
+
         private void PrikaziTabelu(string tip)
         {
             mainPanel.Controls.Clear();
@@ -229,18 +287,22 @@ namespace PathFinders.GUI
 
             Button btnDodaj = NapraviAkcijskoDugme("+ Dodaj", 10, 10);
             Button btnIzmeni = NapraviAkcijskoDugme("✎ Izmeni", 120, 10);
-            Button btnUndo = NapraviAkcijskoDugme("↶ Undo", 230, 10);
-            Button btnRedo = NapraviAkcijskoDugme("↷ Redo", 340, 10);
+
+            
             
             Button btnOtkazi = null;
             if (tip == "Rezervacije")
             {
                 btnOtkazi = NapraviAkcijskoDugme("✖ Otkaži", 450, 10);
+                Button btnUndo = NapraviAkcijskoDugme("↶ Undo", 230, 10);
+                Button btnRedo = NapraviAkcijskoDugme("↷ Redo", 340, 10);
+                topBar.Controls.Add(btnUndo);
+                topBar.Controls.Add(btnRedo);
                 topBar.Controls.Add(btnOtkazi);
             }
 
 
-            TextBox txtPretraga = new TextBox
+            this.txtPretraga = new TextBox
             {
                 PlaceholderText = $"Pretraga ({tip})...",
                 Width = 320,
@@ -292,26 +354,35 @@ namespace PathFinders.GUI
             if (tip == "Klijenti")
             {
                 this.dgvKlijenti = dgv;
-
+                var colId = new DataGridViewTextBoxColumn
+                {
+                    Name = "ID",
+                    HeaderText = "ID",
+                    Visible = false,
+                    ValueType = typeof(int) // ili typeof(string) ako je GUID/tekst
+                };
+                dgv.Columns.Add(colId);
                 dgv.Columns.Add("Ime", "Ime");
                 dgv.Columns.Add("Prezime", "Prezime");
                 dgv.Columns.Add("BrojPasosa", "Broj pasoša");
                 dgv.Columns.Add("DatumRodjenja", "Datum rođenja");
                 dgv.Columns.Add("Email", "Email");
                 dgv.Columns.Add("Telefon", "Telefon");
-
+                dgv.Columns.Add("ID", "ID");
 
                 dgv.Columns["Ime"].Width = 160;
                 dgv.Columns["Prezime"].Width = 170;
                 dgv.Columns["BrojPasosa"].Width = 120;
                 dgv.Columns["DatumRodjenja"].Width = 120;
-
+               
 
                 dgv.Columns["Email"].MinimumWidth = 220;
                 dgv.Columns["Email"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
 
                 dgv.Columns["Telefon"].Width = 140;
                 dgv.Columns["Telefon"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                dgv.Columns["ID"].Visible = false;
+
 
                 dgv.CellClick += (s2, e2) =>
                 {
@@ -323,9 +394,8 @@ namespace PathFinders.GUI
                 };
 
 
+                LoadClientsAsync();
                 
-                dgv.Rows.Add("Bojan", "Kovarbasic", "123456789", "26.8.2024", "dugimejl.koji.je.dug@primerdomena.rs", "062123456");
-                dgv.Rows.Add("Bojana", "Kovarbasic", "123456789", "26-Aug-24", "mail1@gmail.com", "062123456");
 
 
                 btnDodaj.Click += (s, e) =>
@@ -333,15 +403,24 @@ namespace PathFinders.GUI
                     var forma = new FormaNoviKlijent();
                     if (forma.ShowDialog() == DialogResult.OK)
                     {
-                        dgv.Rows.Add(
-                            forma.Ime, forma.Prezime, forma.BrojPasosa,
-                            forma.DatumRodjenja.ToShortDateString(), forma.Email, forma.Telefon
-                        );
+                        
+                        Client client = new Client
+                        {
+
+                            FirstName = forma.Ime,
+                            LastName = forma.Prezime,
+                            PassportNumber = forma.BrojPasosa,
+                            DateOfBirth = forma.DatumRodjenja,
+                            Email = forma.Email,
+                            PhoneNumber = forma.Telefon
+                        };
+                        _facade.AddClientAsync(client);
+                        LoadClientsAsync();
                     }
                 };
 
 
-                btnIzmeni.Click += (s, e) =>
+                btnIzmeni.Click += async (s, e) =>
                 {
                     if (dgv.SelectedRows.Count == 0)
                     {
@@ -351,40 +430,106 @@ namespace PathFinders.GUI
                     }
 
                     var row = dgv.SelectedRows[0];
-                    string ime = row.Cells["Ime"].Value?.ToString() ?? "";
-                    string prezime = row.Cells["Prezime"].Value?.ToString() ?? "";
-                    string brojPasosa = row.Cells["BrojPasosa"].Value?.ToString() ?? "";
-                    string email = row.Cells["Email"].Value?.ToString() ?? "";
-                    string telefon = row.Cells["Telefon"].Value?.ToString() ?? "";
+
+                    // 1) Bezbedno čitanje ID-a iz skrivene kolone
+                    var rawId = row.Cells["ID"]?.Value;
+                    int clientId;
+                    if (rawId is int i) clientId = i;
+                    else if (!int.TryParse(Convert.ToString(rawId), out clientId))
+                    {
+                        MessageBox.Show("ID klijenta nije validan.", "Greška",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    
+                    string ime = row.Cells["Ime"]?.Value?.ToString() ?? "";
+                    string prezime = row.Cells["Prezime"]?.Value?.ToString() ?? "";
+                    string brojPasosa = row.Cells["BrojPasosa"]?.Value?.ToString() ?? "";
+                    string email = row.Cells["Email"]?.Value?.ToString() ?? "";
+                    string telefon = row.Cells["Telefon"]?.Value?.ToString() ?? "";
+
+                   
                     DateTime datumRodjenja;
-                    if (!DateTime.TryParse(row.Cells["DatumRodjenja"].Value?.ToString(), out datumRodjenja))
+                    var rawDob = row.Cells["DatumRodjenja"]?.Value;
+                    if (rawDob is DateTime dt) datumRodjenja = dt.Date;
+                    else if (!DateTime.TryParse(Convert.ToString(rawDob), out datumRodjenja))
                         datumRodjenja = DateTime.Today;
 
+                    
                     var forma = new FormaIzmenaKlijenta(ime, prezime, brojPasosa, email, telefon, datumRodjenja);
+
                     if (forma.ShowDialog() == DialogResult.OK)
                     {
-                        row.Cells["Ime"].Value = forma.Ime;
-                        row.Cells["Prezime"].Value = forma.Prezime;
-                        row.Cells["BrojPasosa"].Value = forma.BrojPasosa;
-                        row.Cells["Email"].Value = forma.Email;
-                        row.Cells["Telefon"].Value = forma.Telefon;
-                        row.Cells["DatumRodjenja"].Value = forma.DatumRodjenja.ToShortDateString();
+                        var client = new Client
+                        {
+                            Id = clientId,
+                            FirstName = forma.Ime,
+                            LastName = forma.Prezime,
+                            PassportNumber = forma.BrojPasosa,
+                            DateOfBirth = forma.DatumRodjenja,
+                            Email = forma.Email,
+                            PhoneNumber = forma.Telefon
+                        };
+
+                        try
+                        {
+                            await _facade.UpdateClientAsync(client);
+                            await LoadClientsAsync(); 
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show("Greška pri izmeni klijenta:\n" + ex.Message, "Greška",
+                                MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                };
+                txtPretraga.TextChanged += async (s, e) =>
+                {
+                    string q = (txtPretraga.Text ?? "").Trim();
+
+                    if (string.IsNullOrEmpty(q))
+                    {
+                        LoadClientsAsync();
+                    }
+                    else if (q.IndexOf(' ') < 0)
+                    {
+                        Client byPassport = await _facade.GetClientByPassportNumberAsync(q);
+                        if (byPassport != null)
+                        {
+                            
+                            PopulateClientsGrid(new List<Client> { byPassport });
+                        }
+                        else
+                        {
+                            var byName = await _facade.GetClientsByName(q, ""); // samo ime
+                            PopulateClientsGrid(byName);
+                        }
+                    }
+                    else
+                    {
+                        var parts = q.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                        string first = parts[0];
+                        string last = string.Join(" ", parts.Skip(1));
+
+                        var byName = await _facade.GetClientsByName(first, last);
+                        PopulateClientsGrid(byName);
                     }
                 };
 
-                int ukupnaSirinaKolona = 0;
-                foreach (DataGridViewColumn col in dgv.Columns)
-                {
-                    ukupnaSirinaKolona += col.Width;
-                }
+                //int ukupnaSirinaKolona = 0;
+                //foreach (DataGridViewColumn col in dgv.Columns)
+                //{
+                //    ukupnaSirinaKolona += col.Width;
+                //}
 
 
-                ukupnaSirinaKolona += 60;
+                //ukupnaSirinaKolona += 60;
 
 
-                this.FormBorderStyle = FormBorderStyle.FixedSingle;
-                this.MaximizeBox = false;
-                this.ClientSize = new Size(ukupnaSirinaKolona + sidebar.Width, this.ClientSize.Height);
+                //this.FormBorderStyle = FormBorderStyle.FixedSingle;
+                //this.MaximizeBox = false;
+                //this.ClientSize = new Size(ukupnaSirinaKolona + sidebar.Width, this.ClientSize.Height);
             }
             else if (tip == "Paketi")
             {

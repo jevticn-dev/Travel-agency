@@ -7,9 +7,9 @@ namespace PathFinders.Services
     public static class PassportEncryptor
     {
         // Ključ (Key) mora biti 32 bajta (256 bita) za AES-256
-        private static readonly byte[] Key = Encoding.UTF8.GetBytes("OvoJeMojTajniKljuc123456789012345"); // 32 bajta
+        private static readonly byte[] Key = Encoding.UTF8.GetBytes("1234567890abcdef1234567890abcdef"); // 32 bajta
         // IV mora biti 16 bajta (128 bita) za AES
-        private static readonly byte[] IV = Encoding.UTF8.GetBytes("InicijalniVektor16"); // 16 bajta
+        private static readonly byte[] IV = Encoding.UTF8.GetBytes("abcdef1234567890"); // 16 bajta
 
         public static string Encrypt(string plainText)
         {
