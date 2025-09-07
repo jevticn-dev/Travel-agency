@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Data.SQLite;
 
 namespace PathFinders.Backup
 {
@@ -25,21 +26,25 @@ namespace PathFinders.Backup
                     Directory.CreateDirectory(backupFolder);
                 }
 
-                string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-
                 var builder = new System.Data.SQLite.SQLiteConnectionStringBuilder(connectionString);
                 string dbFileName = builder.DataSource; //iz connection stringa se uzima ime baze
-
-                string scriptDirectory = Path.Combine(baseDirectory, @"..\..\..\Scripts");
-                string fullBasePath = Path.Combine(scriptDirectory, dbFileName);
 
                 string time = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 string backupName = $"{dbFileName}_backup_{time}.db";
                 string backupFile = Path.Combine(backupFolder, backupName);
 
-                File.Copy(fullBasePath, backupFile, true);
+                using (var source = new SQLiteConnection(connectionString))
+                {
+                    source.Open();
 
-                //Console.WriteLine("SQLite backup created: " + backupFile);
+                    using (var destination = new SQLiteConnection($"Data Source={backupFile};Version=3;"))
+                    {
+                        destination.Open();
+                        source.BackupDatabase(destination, "main", "main", -1, null, 0);
+                    }
+                }
+
+                Console.WriteLine("SQLite backup created: " + backupFile);
 
             }
             catch(Exception ex)

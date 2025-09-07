@@ -123,7 +123,7 @@ namespace PathFinders.GUI
                 }
 
                 Backup.Backup backupModule = new Backup.Backup();
-                string backupPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\"));
+                string backupPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\Database_backup"));
                 activeScheduler = backupModule.InitializeBackup(connectionString, backupPath);
 
                 // Multiton: Get or create a single instance of the database service for this connection string

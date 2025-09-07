@@ -17,14 +17,10 @@ namespace PathFinders.Backup
 
             if (connectionString.ToLower().Contains("server=") && connectionString.ToLower().Contains("database="))
             {
-                var builder = new MySql.Data.MySqlClient.MySqlConnectionStringBuilder(connectionString);
-                databaseName = builder.Database;
                 backupStrategy = new MySQLBackupStrategy(connectionString, backupPath);
             }
             else if (connectionString.ToLower().Contains("data source=") && connectionString.ToLower().Contains("version="))
             {
-                var builder = new System.Data.SQLite.SQLiteConnectionStringBuilder(connectionString);
-                databaseName = Path.GetFileName(builder.DataSource);
                 backupStrategy = new SQLiteBackupStrategy(connectionString, backupPath);
             }
             else
