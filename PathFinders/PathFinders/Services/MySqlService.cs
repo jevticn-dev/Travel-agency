@@ -36,7 +36,7 @@ namespace PathFinders.Services
             ID INT AUTO_INCREMENT PRIMARY KEY,
             Ime VARCHAR(255) NOT NULL,
             Prezime VARCHAR(255) NOT NULL,
-            Broj_pasosa VARBINARY(64) UNIQUE NOT NULL,
+             Broj_pasosa VARCHAR(255) UNIQUE NOT NULL,
             Datum_rodjenja DATE,
             Email_adresa VARCHAR(255),
             Broj_telefona VARCHAR(50)
@@ -114,7 +114,7 @@ namespace PathFinders.Services
                 var command = new MySqlCommand("INSERT INTO Clients (Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona) VALUES (@firstName, @lastName, @passportNumber, @dateOfBirth, @email, @phoneNumber)", (MySqlConnection)connection);
                 command.Parameters.AddWithValue("@firstName", client.FirstName);
                 command.Parameters.AddWithValue("@lastName", client.LastName);
-                command.Parameters.AddWithValue("@passportNumber", PasswordHasher.HashPassword(client.PassportNumber));
+                command.Parameters.AddWithValue("@passportNumber", PassportEncryptor.Encrypt(client.PassportNumber)); // Updated to use Encrypt
                 command.Parameters.AddWithValue("@dateOfBirth", client.DateOfBirth);
                 command.Parameters.AddWithValue("@email", client.Email);
                 command.Parameters.AddWithValue("@phoneNumber", client.PhoneNumber);
@@ -181,7 +181,7 @@ namespace PathFinders.Services
             using (var connection = GetConnection())
             {
                 connection.Open();
-                var adapter = new MySqlDataAdapter("SELECT ID, Ime, Prezime, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients", (MySqlConnection)connection);
+                var adapter = new MySqlDataAdapter("SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients", (MySqlConnection)connection);
                 var dataTable = new DataTable();
                 adapter.Fill(dataTable);
                 return dataTable;
@@ -279,8 +279,9 @@ namespace PathFinders.Services
             using (var connection = GetConnection())
             {
                 connection.Open();
-                var command = new MySqlCommand("SELECT ID, Broj_pasosa FROM Clients WHERE Broj_pasosa = @passportHash", (MySqlConnection)connection);
-                command.Parameters.AddWithValue("@passportHash", PasswordHasher.HashPassword(passportNumber));
+                var command = new MySqlCommand("SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients WHERE Broj_pasosa = @passportHash", (MySqlConnection)connection);
+                command.Parameters.AddWithValue("@passportHash", PassportEncryptor.Encrypt(passportNumber));
+
                 using (var reader = command.ExecuteReader())
                 {
                     if (reader.Read())
@@ -288,7 +289,12 @@ namespace PathFinders.Services
                         return new Client
                         {
                             Id = reader.GetInt32(0),
-                            PassportNumber = passportNumber // Use the provided passport number for the model
+                            FirstName = reader.GetString(1),
+                            LastName = reader.GetString(2),
+                            PassportNumber = passportNumber, // Use the provided, unencrypted passport number
+                            DateOfBirth = reader.GetDateTime(4),
+                            Email = reader.GetString(5),
+                            PhoneNumber = reader.GetString(6)
                         };
                     }
                 }
@@ -355,7 +361,7 @@ namespace PathFinders.Services
                 command.Parameters.AddWithValue("@id", client.Id);
                 command.Parameters.AddWithValue("@firstName", client.FirstName);
                 command.Parameters.AddWithValue("@lastName", client.LastName);
-                command.Parameters.AddWithValue("@passportNumber", PasswordHasher.HashPassword(client.PassportNumber));
+                command.Parameters.AddWithValue("@passportNumber", PassportEncryptor.Encrypt(client.PassportNumber)); // Updated to use Encrypt
                 command.Parameters.AddWithValue("@dateOfBirth", client.DateOfBirth);
                 command.Parameters.AddWithValue("@email", client.Email);
                 command.Parameters.AddWithValue("@phoneNumber", client.PhoneNumber);
