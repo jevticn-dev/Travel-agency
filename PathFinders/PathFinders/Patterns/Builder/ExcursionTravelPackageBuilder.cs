@@ -48,5 +48,10 @@ namespace PathFinders.Patterns.Builder
             };
             _package.Details = JsonConvert.SerializeObject(details);
         }
+
+        public override void BuildDestinationName(string destinationName)
+        {
+            _package.DestinationName = destinationName;
+        }
     }
 }

@@ -22,5 +22,39 @@ namespace PathFinders.Services
                 return bytes;
             }
         }
+
+        /// <summary>
+        /// Verifies a provided password (passport number) against a stored hash.
+        /// </summary>
+        /// <param name="providedPassword">The plain-text passport number entered by the user.</param>
+        /// <param name="storedHash">The hashed passport number retrieved from the database.</param>
+        /// <returns>True if the provided password matches the stored hash, otherwise false.</returns>
+        public static bool VerifyClientPassword(string providedPassword, byte[] storedHash)
+        {
+            if (string.IsNullOrEmpty(providedPassword) || storedHash == null || storedHash.Length == 0)
+            {
+                return false;
+            }
+
+            // Hash the provided password
+            byte[] providedPasswordHash = HashPassword(providedPassword);
+
+            // Compare the newly created hash with the stored hash
+            if (providedPasswordHash.Length != storedHash.Length)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < providedPasswordHash.Length; i++)
+            {
+                if (providedPasswordHash[i] != storedHash[i])
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
     }
 }
+
