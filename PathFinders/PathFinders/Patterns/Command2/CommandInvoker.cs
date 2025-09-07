@@ -30,9 +30,12 @@ namespace PathFinders.Patterns.Command2
 
         public void RedoLastCommand()
         {
-            var command = redoStack.Pop();
-            command.Redo();
-            undoStack.Push(command);
+            if (redoStack.Count > 0)
+            {
+                var command = redoStack.Pop();
+                command.Redo();
+                undoStack.Push(command);
+            }
         }
     }
 }
