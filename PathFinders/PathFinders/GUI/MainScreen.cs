@@ -24,6 +24,7 @@ namespace PathFinders.GUI
         private Panel klijentiPanel;
         private DataGridView dgvKlijenti;
         private Button btnDodaj, btnIzmeni, btnUndo, btnRedo;
+        private Button btnUsluge;
         private TextBox txtPretraga;
         private readonly Size _baseClientSize;
 
@@ -85,10 +86,19 @@ namespace PathFinders.GUI
             btnKlijenti = NapraviDugme("👥 Klijenti", 100);
             btnPaketi = NapraviDugme("📦 Paketi", 160);
             btnRezervacije = NapraviDugme("📅 Rezervacije", 220);
-            btnBackup = NapraviDugme("💾 Backup", 280);
+            btnUsluge = NapraviDugme("🛠️ Usluge", 280 );
+            btnBackup = NapraviDugme("💾 Backup", 340);
+            
 
             sidebar.Controls.Add(lblLogo);
-            sidebar.Controls.AddRange(new Control[] { btnKlijenti, btnPaketi, btnRezervacije, btnBackup });
+            
+
+            sidebar.Controls.AddRange(new Control[] { btnKlijenti, btnPaketi, btnRezervacije, btnUsluge,btnBackup });
+            btnUsluge.Click += (s, e) =>
+            {
+                PrikaziTabelu("Usluge");
+                OznaciDugme(btnUsluge);
+            };
 
             // Glavni panel
             mainPanel = new Panel();
@@ -221,6 +231,7 @@ namespace PathFinders.GUI
             Button btnIzmeni = NapraviAkcijskoDugme("✎ Izmeni", 120, 10);
             Button btnUndo = NapraviAkcijskoDugme("↶ Undo", 230, 10);
             Button btnRedo = NapraviAkcijskoDugme("↷ Redo", 340, 10);
+            
             Button btnOtkazi = null;
             if (tip == "Rezervacije")
             {
@@ -312,12 +323,7 @@ namespace PathFinders.GUI
                 };
 
 
-                // TODO: Load data from the database using _dbService
-                //DataTable clients = _dbService.GetClients();
-                //foreach (DataRow row in clients.Rows)
-                //{
-                //    dgv.Rows.Add(row["Ime"], row["Prezime"], row["Broj_pasosa"], row["Datum_rodjenja"], row["Email_adresa"], row["Broj_telefona"]);
-                //}
+                
                 dgv.Rows.Add("Bojan", "Kovarbasic", "123456789", "26.8.2024", "dugimejl.koji.je.dug@primerdomena.rs", "062123456");
                 dgv.Rows.Add("Bojana", "Kovarbasic", "123456789", "26-Aug-24", "mail1@gmail.com", "062123456");
 
@@ -828,12 +834,12 @@ namespace PathFinders.GUI
                 dgv.Columns.Add("BrojOsoba", "Broj osoba");
                 dgv.Columns.Add("DatumRez", "Datum rezervacije");
                 dgv.Columns.Add("Destinacija", "Destinacija");
-                dgv.Columns["Paket"].Width = 400;                 
-                dgv.Columns["BrojOsoba"].Width = 120;
-                dgv.Columns["DatumRez"].Width = 140;
-                dgv.Columns["Paket"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                dgv.Columns["Destinacija"].Width = 200;
-
+                dgv.Columns.Add("Usluge", "Usluge");
+                dgv.Columns["Paket"].Width = 240;
+                dgv.Columns["BrojOsoba"].Width = 80;         // smanjeno
+                dgv.Columns["DatumRez"].Width = 120;         // smanjeno
+                dgv.Columns["Destinacija"].Width = 160;
+                dgv.Columns["Usluge"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
                 var colKlijent = new DataGridViewTextBoxColumn
                 {
                     Name = "Klijent",
@@ -850,8 +856,8 @@ namespace PathFinders.GUI
                 dgv.Columns["Destinacija"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
 
 
-                dgv.Rows.Add("Grčka - Letovanje", 2, "12.07.2025", "Krf", "Bojan Kovarbasic");
-                dgv.Rows.Add("Kopaonik - Zimovanje", 4, "15.01.2026", "Kopaonik", "Bojana Kovarbasic");
+                dgv.Rows.Add("Grčka - Letovanje", 2, "12.07.2025", "Krf", "Transfer, Osiguranje");
+                dgv.Rows.Add("Kopaonik - Zimovanje", 4, "15.01.2026", "Kopaonik", "Ski pass, Sauna");
 
 
 
@@ -919,28 +925,7 @@ namespace PathFinders.GUI
                 {
                     using (var dlg = new FormaNovaRezervacija())
                     {
-                        if (dlg.ShowDialog(this) == DialogResult.OK)
-                        {
-                            var r = dlg.Rezultat;
-                            dgv.Rows.Add(
-                                r.PaketPrikaz,
-                                r.BrojOsoba,
-                                r.DatumRezervacije.ToString("dd.MM.yyyy"),
-                                r.Destinacija,
-                                cboKlijent.SelectedItem?.ToString() ?? ""
-                            );
-                            ApplyFilter();
-                            if (dgv.Rows.Count > 0)
-                            {
-                                dgv.ClearSelection();
-                                var last = dgv.Rows[dgv.Rows.Count - 1];
-                                if (last.Visible)
-                                {
-                                    last.Selected = true;
-                                    dgv.CurrentCell = last.Cells["Paket"];
-                                }
-                            }
-                        }
+                        dlg.ShowDialog(this); // samo otvara formu i čeka da se zatvori
                     }
                 };
 
@@ -976,6 +961,123 @@ namespace PathFinders.GUI
                 };
 
             }
+            else if (tip == "Usluge")
+            {
+                var uslugeHost = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+                frame.Controls.Remove(dgv);
+                frame.Controls.Add(uslugeHost);
+                uslugeHost.BringToFront();
+
+                var g = new DataGridView
+                {
+                    Dock = DockStyle.Fill,
+                    BackgroundColor = Color.White,
+                    GridColor = Color.LightGray,
+                    AllowUserToAddRows = false,
+                    EnableHeadersVisualStyles = false,
+                    SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                    MultiSelect = false,
+                    EditMode = DataGridViewEditMode.EditProgrammatically,
+                    ReadOnly = true,
+                    ColumnHeadersDefaultCellStyle = { ForeColor = Color.Black, BackColor = Color.White },
+                    DefaultCellStyle =
+        {
+            BackColor = Color.White,
+            ForeColor = Color.Black,
+            SelectionBackColor = Color.LightGray,
+            SelectionForeColor = Color.Black
+        },
+                    AlternatingRowsDefaultCellStyle =
+        {
+            BackColor = Color.FromArgb(245,245,245),
+            ForeColor = Color.Black
+        },
+                    AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None
+                };
+                uslugeHost.Controls.Add(g);
+
+                var cNaziv = new DataGridViewTextBoxColumn { Name = "Naziv", HeaderText = "Naziv", Width = 420 };
+                var cCena = new DataGridViewTextBoxColumn { Name = "Cena", HeaderText = "Cena", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill };
+                g.Columns.AddRange(new DataGridViewColumn[] { cNaziv, cCena });
+
+                g.CellClick += (ss, ee) =>
+                {
+                    if (ee.RowIndex >= 0)
+                    {
+                        g.ClearSelection();
+                        g.Rows[ee.RowIndex].Selected = true;
+                    }
+                };
+
+                g.Rows.Add("Transfer do aerodroma", "25€");
+                g.Rows.Add("Dodatno osiguranje", "15€");
+                g.Rows.Add("Iznajmljivanje opreme", "30€");
+                g.Rows.Add("Ulaznica za muzej", "12€");
+                g.Rows.Add("Spa paket na brodu", "59€");
+
+                txtPretraga.TextChanged += (s, e2) =>
+                {
+                    string q = (txtPretraga.Text ?? "").Trim().ToLowerInvariant();
+                    foreach (DataGridViewRow r in g.Rows)
+                    {
+                        bool match = string.IsNullOrEmpty(q);
+                        if (!match)
+                        {
+                            foreach (DataGridViewCell c in r.Cells)
+                            {
+                                var val = c.Value?.ToString()?.ToLowerInvariant() ?? "";
+                                if (val.Contains(q)) { match = true; break; }
+                            }
+                        }
+                        r.Visible = match;
+                    }
+                };
+
+                btnDodaj.Click += (s, e2) =>
+                {
+                    using (var dlg = new FormaNovaUsluga())
+                    {
+                        if (dlg.ShowDialog(this) == DialogResult.OK)
+                        {
+                            g.Rows.Add(dlg.Naziv, dlg.Cena);
+                            g.ClearSelection();
+                            var last = g.Rows[g.Rows.Count - 1];
+                            if (last.Visible)
+                            {
+                                last.Selected = true;
+                                g.CurrentCell = last.Cells["Naziv"];
+                            }
+                        }
+                    }
+                };
+
+                btnIzmeni.Click += (s, e2) =>
+                {
+                    if (g.SelectedRows.Count == 0)
+                    {
+                        MessageBox.Show("Prvo izaberite uslugu u tabeli.", "Info",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+
+                    var row = g.SelectedRows[0];
+                    string naziv = row.Cells["Naziv"].Value?.ToString() ?? "";
+                    string cena = row.Cells["Cena"].Value?.ToString() ?? "";
+
+                    using (var dlg = new FormaIzmenaUsluge(naziv, cena))
+                    {
+                        if (dlg.ShowDialog(this) == DialogResult.OK)
+                        {
+                            row.Cells["Naziv"].Value = dlg.Naziv;
+                            row.Cells["Cena"].Value = dlg.Cena;
+                            g.ClearSelection();
+                            row.Selected = true;
+                            g.CurrentCell = row.Cells["Naziv"];
+                        }
+                    }
+                };
+            }
+
         }
     }
 
