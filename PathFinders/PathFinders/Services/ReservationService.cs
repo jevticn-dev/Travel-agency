@@ -34,27 +34,8 @@ namespace PathFinders.Services
 
         public List<Reservation> GetReservationsForClient(int clientId)
         {
-            DataTable reservationsTable = _databaseService.GetReservationsForClient(clientId);
-            var reservations = new List<Reservation>();
-
-            foreach (DataRow row in reservationsTable.Rows)
-            {
-                var reservation = new Reservation
-                {
-                    Id = row.Field<int>("ID"),
-                    ClientId = row.Field<int>("KlijentID"),
-                    TravelPackageId = row.Field<int>("PaketID"),
-                    ReservationDate = row.Field<DateTime>("Datum_rezervacije"),
-                    NumberOfPeople = row.Field<int>("Broj_osoba")
-                };
-
-                // Fetch and populate the related objects
-                reservation.Package = _databaseService.GetPackageById(reservation.TravelPackageId);
-                reservation.AdditionalServices = _databaseService.GetServicesForReservation(reservation.Id);
-
-                reservations.Add(reservation);
-            }
-            return reservations;
+            // Now directly returns a List<Reservation>, no DataTable conversion is needed
+            return _databaseService.GetReservationsForClient(clientId);
         }
 
         public decimal GetTotalPrice(int reservationId)
@@ -81,7 +62,6 @@ namespace PathFinders.Services
             _databaseService.DeleteReservation(reservationId);
         }
 
-        // U klasi ReservationService.cs
         public void DeleteReservationsForPackage(int packageId)
         {
             // Pronađite sve rezervacije koje se odnose na ovaj paket
@@ -93,6 +73,5 @@ namespace PathFinders.Services
                 DeleteReservation(reservation.Id); // Ponovo koristimo vašu već implementiranu logiku
             }
         }
-
     }
 }

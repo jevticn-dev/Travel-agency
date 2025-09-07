@@ -36,42 +36,14 @@ namespace PathFinders.Services
 
         public List<TravelPackage> GetPackages()
         {
-            DataTable packagesTable = _databaseService.GetPackages();
-            var packages = new List<TravelPackage>();
-
-            foreach (DataRow row in packagesTable.Rows)
-            {
-                packages.Add(new TravelPackage
-                {
-                    Id = row.Field<int>("ID"),
-                    Name = row.Field<string>("Naziv"),
-                    Price = row.Field<decimal>("Cena"),
-                    Type = row.Field<string>("Tip"),
-                    DestinationId = row.Field<int>("DestinacijaID"),
-                    Details = row.Field<string>("Detalji")
-                });
-            }
-            return packages;
+            // Now directly returns a List<TravelPackage>, no DataTable conversion is needed
+            return _databaseService.GetPackages();
         }
 
         public List<TravelPackage> GetPackagesByType(string type)
         {
-            DataTable packagesTable = _databaseService.GetTravelPackageByType(type);
-            var packages = new List<TravelPackage>();
-
-            foreach (DataRow row in packagesTable.Rows)
-            {
-                packages.Add(new TravelPackage
-                {
-                    Id = row.Field<int>("ID"),
-                    Name = row.Field<string>("Naziv"),
-                    Price = row.Field<decimal>("Cena"),
-                    Type = row.Field<string>("Tip"),
-                    DestinationId = row.Field<int?>("DestinacijaID"),
-                    Details = row.Field<string>("Detalji")
-                });
-            }
-            return packages;
+            // Now directly returns a List<TravelPackage>, no DataTable conversion is needed
+            return _databaseService.GetTravelPackageByType(type);
         }
 
         public void UpdatePackage(TravelPackage package)
@@ -87,6 +59,5 @@ namespace PathFinders.Services
             // 2. Nakon toga, obrišite sam paket
             _databaseService.DeletePackage(packageId);
         }
-
     }
 }

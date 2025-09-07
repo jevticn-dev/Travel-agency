@@ -22,14 +22,15 @@ namespace PathFinders.Services
         void AddReservationService(ReservationServiceAssociation reservationService);
 
         // citanje
-        DataTable GetClients();
-        DataTable GetClientByName(string firstName, string lastName);
-        DataTable GetPackages();
-        DataTable GetTravelPackageByType(string type);
-        DataTable GetReservationsForClient(int clientId);
+        List<Client> GetClients();
+        List<Client> GetClientByName(string firstName, string lastName);
+        List<TravelPackage> GetPackages();
+        List<TravelPackage> GetTravelPackageByType(string type);
+
+        List<Reservation> GetReservationsForClient(int clientId);
         Client GetClientByPassportNumber(string passportNumber);
         int GetOrCreateDestination(string destinationName);
-        DataTable GetServices();
+        List<Service> GetServices();
         List<Service> GetServicesForReservation(int reservationId);
         TravelPackage GetPackageById(int packageId);
         Reservation GetReservationById(int reservationId);
@@ -39,7 +40,6 @@ namespace PathFinders.Services
         void UpdateClient(Client client);
         int UpdateReservation(Reservation reservation);
         void UpdateService(Service service);
-
         void UpdatePackage(TravelPackage package); // NOVA METODA
 
         // brisanje
@@ -47,10 +47,9 @@ namespace PathFinders.Services
         void DeleteService(int serviceId);
         void DeleteReservationService(int reservationServiceId);
         void DeleteServicesForReservation(int reservationId); // Nova metoda
-
         void DeletePackage(int packageId); // NOVA METODA
 
         // ostalo
-        DataTable GetAvailableDestinations();
+        List<String> GetAvailableDestinations();
     }
 }
