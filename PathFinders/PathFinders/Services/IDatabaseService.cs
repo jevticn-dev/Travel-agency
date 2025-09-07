@@ -37,7 +37,7 @@ namespace PathFinders.Services
 
         // azuriranje
         void UpdateClient(Client client);
-        void UpdateReservation(Reservation reservation);
+        int UpdateReservation(Reservation reservation);
         void UpdateService(Service service);
 
         void UpdatePackage(TravelPackage package); // NOVA METODA

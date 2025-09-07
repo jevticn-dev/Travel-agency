@@ -67,9 +67,9 @@ namespace PathFinders.Services
             return decorator.GetTotalPrice();
         }
 
-        public void UpdateReservation(Reservation reservation)
+        public int UpdateReservation(Reservation reservation)
         {
-            _databaseService.UpdateReservation(reservation);
+            return _databaseService.UpdateReservation(reservation);
         }
 
         public void DeleteReservation(int reservationId)
