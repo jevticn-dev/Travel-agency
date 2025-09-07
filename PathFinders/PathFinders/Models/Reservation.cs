@@ -1,4 +1,5 @@
-﻿using System;
+﻿using PathFinders.Patterns.Memento;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -20,6 +21,24 @@ namespace PathFinders.Models
         public decimal GetTotalPrice()
         {
             return Package.Price * NumberOfPeople;
+        }
+
+        internal ReservationMemento SaveState()
+        {
+            // Pozivamo statičku metodu Memento klase
+            return ReservationMemento.Create(this);
+        }
+
+        internal void Restore(ReservationMemento memento)
+        {
+            var state = memento.GetState();
+            this.Id = state.Id;
+            this.ClientId = state.ClientId;
+            this.TravelPackageId = state.TravelPackageId;
+            this.Package = state.Package;
+            this.ReservationDate = state.ReservationDate;
+            this.NumberOfPeople = state.NumberOfPeople;
+            this.AdditionalServices = state.AdditionalServices;
         }
     }
 }

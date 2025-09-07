@@ -106,18 +106,65 @@ namespace PathFinders.Services
             }
         }
 
+        //public DataTable GetClientByName(string firstName, string lastName)
+        //{
+        //    using (var connection = GetConnection())
+        //    {
+        //        connection.Open();
+        //        var query = "SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients WHERE Ime LIKE @firstName OR Prezime LIKE @lastName";
+        //        var adapter = new MySqlDataAdapter(query, (MySqlConnection)connection);
+        //        adapter.SelectCommand.Parameters.AddWithValue("@firstName", $"%{firstName}%");
+        //        adapter.SelectCommand.Parameters.AddWithValue("@lastName", $"%{lastName}%");
+        //        var dataTable = new DataTable();
+        //        adapter.Fill(dataTable);
+        //        return dataTable;
+        //    }
+        //}
+
         public DataTable GetClientByName(string firstName, string lastName)
         {
             using (var connection = GetConnection())
             {
                 connection.Open();
-                var query = "SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients WHERE Ime LIKE @firstName OR Prezime LIKE @lastName";
-                var adapter = new MySqlDataAdapter(query, (MySqlConnection)connection);
-                adapter.SelectCommand.Parameters.AddWithValue("@firstName", $"%{firstName}%");
-                adapter.SelectCommand.Parameters.AddWithValue("@lastName", $"%{lastName}%");
-                var dataTable = new DataTable();
-                adapter.Fill(dataTable);
-                return dataTable;
+
+                var query = new StringBuilder(
+                    "SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients WHERE ");
+
+                var cmd = new MySqlCommand();
+                cmd.Connection = (MySqlConnection)connection;
+
+                if (!string.IsNullOrWhiteSpace(firstName) && !string.IsNullOrWhiteSpace(lastName))
+                {
+                    // oba uneta → AND
+                    query.Append("Ime LIKE @firstName AND Prezime LIKE @lastName");
+                    cmd.Parameters.AddWithValue("@firstName", $"%{firstName}%");
+                    cmd.Parameters.AddWithValue("@lastName", $"%{lastName}%");
+                }
+                else if (!string.IsNullOrWhiteSpace(firstName))
+                {
+                    // samo ime (ili jedna reč) → gledaj i Ime i Prezime
+                    query.Append("Ime LIKE @first OR Prezime LIKE @first");
+                    cmd.Parameters.AddWithValue("@first", $"%{firstName}%");
+                }
+                else if (!string.IsNullOrWhiteSpace(lastName))
+                {
+                    // samo prezime
+                    query.Append("Ime LIKE @last OR Prezime LIKE @last");
+                    cmd.Parameters.AddWithValue("@last", $"%{lastName}%");
+                }
+                else
+                {
+                    // prazno → vrati sve
+                    query.Clear();
+                    query.Append("SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients");
+                }
+
+                cmd.CommandText = query.ToString();
+
+                var adapter = new MySqlDataAdapter(cmd);
+                var table = new DataTable();
+                adapter.Fill(table);
+                return table;
             }
         }
 
