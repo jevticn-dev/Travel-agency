@@ -12,10 +12,12 @@ namespace PathFinders.Services
     public class PackageService
     {
         private readonly IDatabaseService _databaseService;
+        private readonly ReservationService _reservationService;
 
-        public PackageService(IDatabaseService databaseService)
+        public PackageService(IDatabaseService databaseService, ReservationService reservationService)
         {
             _databaseService = databaseService;
+            _reservationService = reservationService;
         }
 
         public void AddPackage(TravelPackageBuilder builder, string name, decimal price, string destinationName)
@@ -51,5 +53,20 @@ namespace PathFinders.Services
             }
             return packages;
         }
+
+        public void UpdatePackage(TravelPackage package)
+        {
+            _databaseService.UpdatePackage(package);
+        }
+
+        public void DeletePackage(int packageId)
+        {
+            // 1. Obrišite sve rezervacije povezane sa paketom
+            _reservationService.DeleteReservationsForPackage(packageId);
+
+            // 2. Nakon toga, obrišite sam paket
+            _databaseService.DeletePackage(packageId);
+        }
+
     }
 }

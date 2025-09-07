@@ -351,6 +351,32 @@ namespace PathFinders.Services
             }
         }
 
+        public List<Reservation> GetReservationsForPackage(int packageId)
+        {
+            var reservations = new List<Reservation>();
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+                var command = new SQLiteCommand("SELECT * FROM Reservations WHERE PaketID = @packageId", connection);
+                command.Parameters.AddWithValue("@packageId", packageId);
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        reservations.Add(new Reservation
+                        {
+                            Id = reader.GetInt32(0),
+                            ClientId = reader.GetInt32(1),
+                            TravelPackageId = reader.GetInt32(2),
+                            ReservationDate = reader.GetDateTime(3),
+                            NumberOfPeople = reader.GetInt32(4)
+                        });
+                    }
+                }
+            }
+            return reservations;
+        }
+
         public void UpdateClient(Client client)
         {
             using (var connection = new SQLiteConnection(_connectionString))
@@ -396,6 +422,24 @@ namespace PathFinders.Services
             }
         }
 
+        // U klasi SQLiteService
+        public void UpdatePackage(TravelPackage package)
+        {
+            using (var connection = (SQLiteConnection)GetConnection())
+            {
+                connection.Open();
+                string query = "UPDATE Packages SET Naziv = @name, Cena = @price, Tip = @type, DestinacijaID = @destinationId, Detalji = @details WHERE ID = @id";
+                var command = new SQLiteCommand(query, connection);
+                command.Parameters.AddWithValue("@name", package.Name);
+                command.Parameters.AddWithValue("@price", package.Price);
+                command.Parameters.AddWithValue("@type", package.Type);
+                command.Parameters.AddWithValue("@destinationId", package.DestinationId);
+                command.Parameters.AddWithValue("@details", package.Details);
+                command.Parameters.AddWithValue("@id", package.Id);
+                command.ExecuteNonQuery();
+            }
+        }
+
         public void DeleteReservation(int reservationId)
         {
             using (var connection = new SQLiteConnection(_connectionString))
@@ -436,6 +480,17 @@ namespace PathFinders.Services
                 connection.Open();
                 var command = new SQLiteCommand("DELETE FROM ReservationServiceAssociations WHERE ReservationID = @reservationId", connection);
                 command.Parameters.AddWithValue("@reservationId", reservationId);
+                command.ExecuteNonQuery();
+            }
+        }
+
+        public void DeletePackage(int packageId)
+        {
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+                var command = new SQLiteCommand("DELETE FROM Packages WHERE ID = @packageId", connection);
+                command.Parameters.AddWithValue("@packageId", packageId);
                 command.ExecuteNonQuery();
             }
         }

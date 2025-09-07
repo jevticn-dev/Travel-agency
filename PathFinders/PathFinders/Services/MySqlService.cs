@@ -320,6 +320,32 @@ namespace PathFinders.Services
             }
         }
 
+        public List<Reservation> GetReservationsForPackage(int packageId)
+        {
+            var reservations = new List<Reservation>();
+            using (var connection = new MySqlConnection(_connectionString))
+            {
+                connection.Open();
+                var command = new MySqlCommand("SELECT * FROM Reservations WHERE PaketID = @packageId", connection);
+                command.Parameters.AddWithValue("@packageId", packageId);
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        reservations.Add(new Reservation
+                        {
+                            Id = reader.GetInt32("ID"),
+                            ClientId = reader.GetInt32("KlijentID"),
+                            TravelPackageId = reader.GetInt32("PaketID"),
+                            ReservationDate = reader.GetDateTime("Datum_rezervacije"),
+                            NumberOfPeople = reader.GetInt32("Broj_osoba")
+                        });
+                    }
+                }
+            }
+            return reservations;
+        }
+
         public void UpdateClient(Client client)
         {
             using (var connection = GetConnection())
@@ -366,6 +392,24 @@ namespace PathFinders.Services
             }
         }
 
+        // U klasi MySqlService
+        public void UpdatePackage(TravelPackage package)
+        {
+            using (var connection = (MySqlConnection)GetConnection())
+            {
+                connection.Open();
+                string query = "UPDATE Packages SET Naziv = @name, Cena = @price, Tip = @type, DestinacijaID = @destinationId, Detalji = @details WHERE ID = @id";
+                var command = new MySqlCommand(query, connection);
+                command.Parameters.AddWithValue("@name", package.Name);
+                command.Parameters.AddWithValue("@price", package.Price);
+                command.Parameters.AddWithValue("@type", package.Type);
+                command.Parameters.AddWithValue("@destinationId", package.DestinationId);
+                command.Parameters.AddWithValue("@details", package.Details);
+                command.Parameters.AddWithValue("@id", package.Id);
+                command.ExecuteNonQuery();
+            }
+        }
+
         public void DeleteReservation(int reservationId)
         {
             using (var connection = GetConnection())
@@ -406,6 +450,17 @@ namespace PathFinders.Services
                 connection.Open();
                 var command = new MySqlCommand("DELETE FROM ReservationServiceAssociations WHERE ReservationID = @reservationId", connection);
                 command.Parameters.AddWithValue("@reservationId", reservationId);
+                command.ExecuteNonQuery();
+            }
+        }
+
+        public void DeletePackage(int packageId)
+        {
+            using (var connection = new MySqlConnection(_connectionString))
+            {
+                connection.Open();
+                var command = new MySqlCommand("DELETE FROM Packages WHERE ID = @packageId", connection);
+                command.Parameters.AddWithValue("@packageId", packageId);
                 command.ExecuteNonQuery();
             }
         }

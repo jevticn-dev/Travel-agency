@@ -80,5 +80,19 @@ namespace PathFinders.Services
             // 2. Nakon toga, obrišite samu rezervaciju
             _databaseService.DeleteReservation(reservationId);
         }
+
+        // U klasi ReservationService.cs
+        public void DeleteReservationsForPackage(int packageId)
+        {
+            // Pronađite sve rezervacije koje se odnose na ovaj paket
+            var reservations = _databaseService.GetReservationsForPackage(packageId);
+
+            // Za svaku rezervaciju, pozovite postojeću metodu za brisanje
+            foreach (var reservation in reservations)
+            {
+                DeleteReservation(reservation.Id); // Ponovo koristimo vašu već implementiranu logiku
+            }
+        }
+
     }
 }

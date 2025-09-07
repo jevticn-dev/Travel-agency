@@ -31,17 +31,22 @@ namespace PathFinders.Services
         List<Service> GetServicesForReservation(int reservationId);
         TravelPackage GetPackageById(int packageId);
         Reservation GetReservationById(int reservationId);
+        List<Reservation> GetReservationsForPackage(int packageId);
 
         // azuriranje
         void UpdateClient(Client client);
         void UpdateReservation(Reservation reservation);
         void UpdateService(Service service);
 
+        void UpdatePackage(TravelPackage package); // NOVA METODA
+
         // brisanje
         void DeleteReservation(int reservationId);
         void DeleteService(int serviceId);
         void DeleteReservationService(int reservationServiceId);
         void DeleteServicesForReservation(int reservationId); // Nova metoda
+
+        void DeletePackage(int packageId); // NOVA METODA
 
         // ostalo
         DataTable GetAvailableDestinations();
