@@ -3,6 +3,8 @@ using System.IO;
 using System.Windows.Forms;
 using PathFinders.Patterns.Multiton; // Import Multiton namespace
 using PathFinders.Services;
+using PathFinders.Backup;
+using System.Linq;
 
 namespace PathFinders.GUI
 {
@@ -11,6 +13,7 @@ namespace PathFinders.GUI
         private Label lblTitle;
         private ComboBox cboConfigs;
         private Button btnOpen;
+        private BackupScheduler activeScheduler;
 
         public FormaIzborBaze()
         {
@@ -113,6 +116,15 @@ namespace PathFinders.GUI
                 string[] lines = File.ReadAllLines(configFilePath);
                 string agencyName = lines[0];
                 string connectionString = lines[1];
+
+                if (activeScheduler != null)
+                {
+                    activeScheduler.Stop();
+                }
+
+                Backup.Backup backupModule = new Backup.Backup();
+                string backupPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\"));
+                activeScheduler = backupModule.InitializeBackup(connectionString, backupPath);
 
                 // Multiton: Get or create a single instance of the database service for this connection string
                 IDatabaseService dbService = DatabaseManager.GetInstance(connectionString);
