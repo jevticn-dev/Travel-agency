@@ -164,7 +164,7 @@ namespace PathFinders.Services
             }
         }
 
-        public void AddReservation(Reservation reservation)
+        public int AddReservation(Reservation reservation)
         {
             using (var connection = new SQLiteConnection(_connectionString))
             {
@@ -176,6 +176,10 @@ namespace PathFinders.Services
                 command.Parameters.AddWithValue("@reservationDate", reservation.ReservationDate.ToString("yyyy-MM-dd HH:mm:ss"));
                 command.Parameters.AddWithValue("@numberOfPeople", reservation.NumberOfPeople);
                 command.ExecuteNonQuery();
+
+                command = new SQLiteCommand("SELECT last_insert_rowid()", connection);
+                long lastId = (long)command.ExecuteScalar();
+                return (int)lastId;
             }
         }
 

@@ -152,7 +152,7 @@ namespace PathFinders.Services
             }
         }
 
-        public void AddReservation(Reservation reservation)
+        public int AddReservation(Reservation reservation)
         {
             using (var connection = GetConnection())
             {
@@ -163,6 +163,10 @@ namespace PathFinders.Services
                 command.Parameters.AddWithValue("@reservationDate", reservation.ReservationDate);
                 command.Parameters.AddWithValue("@numberOfPeople", reservation.NumberOfPeople);
                 command.ExecuteNonQuery();
+
+                command = new MySqlCommand("SELECT LAST_INSERT_ID()", (MySqlConnection)connection);
+                long lastId = (long)command.ExecuteScalar();
+                return (int)lastId;
             }
         }
 

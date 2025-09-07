@@ -19,9 +19,9 @@ namespace PathFinders.Services
             _databaseService = databaseService;
         }
 
-        public void AddReservation(Reservation reservation)
+        public int AddReservation(Reservation reservation)
         {
-            _databaseService.AddReservation(reservation);
+            return _databaseService.AddReservation(reservation);
         }
 
         public void AddServiceToReservation(int reservationId, int serviceId)

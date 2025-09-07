@@ -17,7 +17,7 @@ namespace PathFinders.Services
         // dodavanje
         void AddClient(Client client);
         void AddPackage(TravelPackage package);
-        void AddReservation(Reservation reservation);
+        int AddReservation(Reservation reservation);
         void AddService(Service service);
         void AddReservationService(ReservationServiceAssociation reservationService);
 
