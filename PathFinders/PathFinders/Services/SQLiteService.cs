@@ -55,7 +55,7 @@ namespace PathFinders.Services
                 string createClientsTable = @"
                 CREATE TABLE IF NOT EXISTS Clients (
                     ID INTEGER PRIMARY KEY AUTOINCREMENT,
-                    Ime TEXT NOT alL,
+                    Ime TEXT NOT NULL,
                     Prezime TEXT NOT NULL,
                     Broj_pasosa TEXT UNIQUE NOT NULL,
                     Datum_rodjenja TEXT,
