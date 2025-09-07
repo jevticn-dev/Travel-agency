@@ -427,7 +427,7 @@ namespace PathFinders.Services
             }
         }
 
-        public void UpdateReservation(Reservation reservation)
+        public int UpdateReservation(Reservation reservation)
         {
             using (var connection = new SQLiteConnection(_connectionString))
             {
@@ -439,6 +439,8 @@ namespace PathFinders.Services
                 command.Parameters.AddWithValue("@numberOfPeople", reservation.NumberOfPeople);
                 command.Parameters.AddWithValue("@id", reservation.Id);
                 command.ExecuteNonQuery();
+
+                return reservation.Id;
             }
         }
 
