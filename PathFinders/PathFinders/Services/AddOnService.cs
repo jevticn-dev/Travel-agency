@@ -24,21 +24,8 @@ namespace PathFinders.Services
 
         public List<Service> GetServices()
         {
-            DataTable servicesTable = _databaseService.GetServices();
-            var services = new List<Service>();
-
-            foreach (DataRow row in servicesTable.Rows)
-            {
-                services.Add(new Service
-                {
-                    Id = row.Field<int>("ID"),
-                    ServiceName = row.Field<string>("ServiceName"),
-                    ServicePrice = row.Field<decimal>("ServicePrice"),
-                    ServiceDescription = row.Field<string>("ServiceDescription")
-                });
-            }
-
-            return services;
+            // Now directly returns a List<Service>, no DataTable conversion is needed
+            return _databaseService.GetServices();
         }
 
         public void UpdateService(Service service)

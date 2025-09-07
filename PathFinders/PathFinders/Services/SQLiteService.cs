@@ -16,7 +16,16 @@ namespace PathFinders.Services
 
         public SQLiteService(string connectionString)
         {
-            _connectionString = connectionString;
+            var parts = connectionString.Split('=');
+            string dbFileName = parts[1].Split(';')[0];
+
+            // Gets the base directory of the application (e.g., C:\Projekat\bin\Debug)
+            string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+
+            // Builds the path to go up two directories and then into the Database folder
+            string absoluteDbPath = Path.Combine(baseDirectory, "..\\..\\..\\", "Database", dbFileName);
+
+            _connectionString = $"Data Source={absoluteDbPath};Version=3;";
             CreateDatabaseAndTables();
         }
 
@@ -26,14 +35,16 @@ namespace PathFinders.Services
             connection.Open();
             var command = new SQLiteCommand("PRAGMA foreign_keys = ON;", connection);
             command.ExecuteNonQuery();
-            return connection; // Vraćanje iste instance
+            return connection;
         }
 
         private void CreateDatabaseAndTables()
         {
-            if (!File.Exists(_connectionString.Split('=')[1]))
+            string dbPath = new SQLiteConnectionStringBuilder(_connectionString).DataSource;
+
+            if (!System.IO.File.Exists(dbPath))
             {
-                SQLiteConnection.CreateFile(_connectionString.Split('=')[1]);
+                System.Data.SQLite.SQLiteConnection.CreateFile(dbPath);
             }
 
             using (var connection = new SQLiteConnection(_connectionString))
@@ -44,7 +55,7 @@ namespace PathFinders.Services
                 string createClientsTable = @"
                 CREATE TABLE IF NOT EXISTS Clients (
                     ID INTEGER PRIMARY KEY AUTOINCREMENT,
-                    Ime TEXT NOT NULL,
+                    Ime TEXT NOT alL,
                     Prezime TEXT NOT NULL,
                     Broj_pasosa TEXT UNIQUE NOT NULL,
                     Datum_rodjenja TEXT,
@@ -116,62 +127,62 @@ namespace PathFinders.Services
             }
         }
 
-        //public DataTable GetClientByName(string firstName, string lastName)
-        //{
-        //    using (var connection = new SQLiteConnection(_connectionString))
-        //    {
-        //        connection.Open();
-        //        var query = "SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients WHERE Ime LIKE @firstName OR Prezime LIKE @lastName";
-        //        var adapter = new SQLiteDataAdapter(query, connection);
-        //        adapter.SelectCommand.Parameters.AddWithValue("@firstName", $"%{firstName}%");
-        //        adapter.SelectCommand.Parameters.AddWithValue("@lastName", $"%{lastName}%");
-        //        var dataTable = new DataTable();
-        //        adapter.Fill(dataTable);
-        //        return dataTable;
-        //    }
-        //}
-        public DataTable GetClientByName(string firstName, string lastName)
+        public List<Client> GetClientByName(string firstName, string lastName)
         {
+            var clients = new List<Client>();
             using (var connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
-
-                var sb = new StringBuilder();
-                sb.Append("SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients");
-
+                var sb = new StringBuilder("SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients WHERE ");
                 var cmd = new SQLiteCommand();
                 cmd.Connection = connection;
 
                 if (!string.IsNullOrWhiteSpace(firstName) && !string.IsNullOrWhiteSpace(lastName))
                 {
-                    // Ime + prezime → AND
-                    sb.Append(" WHERE Ime LIKE @firstName AND Prezime LIKE @lastName");
+                    sb.Append("Ime LIKE @firstName AND Prezime LIKE @lastName");
                     cmd.Parameters.AddWithValue("@firstName", $"%{firstName}%");
                     cmd.Parameters.AddWithValue("@lastName", $"%{lastName}%");
                 }
                 else if (!string.IsNullOrWhiteSpace(firstName))
                 {
-                    // Samo ime → pretraga i po imenu i po prezimenu
-                    sb.Append(" WHERE Ime LIKE @first OR Prezime LIKE @first");
+                    sb.Append("Ime LIKE @first OR Prezime LIKE @first");
                     cmd.Parameters.AddWithValue("@first", $"%{firstName}%");
                 }
                 else if (!string.IsNullOrWhiteSpace(lastName))
                 {
-                    // Samo prezime
-                    sb.Append(" WHERE Ime LIKE @last OR Prezime LIKE @last");
+                    sb.Append("Ime LIKE @last OR Prezime LIKE @last");
                     cmd.Parameters.AddWithValue("@last", $"%{lastName}%");
                 }
-                // ako su oba prazna → nema WHERE → vrati sve
+                else
+                {
+                    sb.Clear();
+                    sb.Append("SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients");
+                }
 
                 cmd.CommandText = sb.ToString();
 
-                var adapter = new SQLiteDataAdapter(cmd);
-                var dataTable = new DataTable();
-                adapter.Fill(dataTable);
-                return dataTable;
-            }
-        }
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        string encryptedPassport = reader.GetString(reader.GetOrdinal("Broj_pasosa"));
+                        string decryptedPassport = PassportEncryptor.Decrypt(encryptedPassport);
 
+                        clients.Add(new Client
+                        {
+                            Id = reader.GetInt32(reader.GetOrdinal("ID")),
+                            FirstName = reader.GetString(reader.GetOrdinal("Ime")),
+                            LastName = reader.GetString(reader.GetOrdinal("Prezime")),
+                            PassportNumber = decryptedPassport,
+                            DateOfBirth = reader.GetDateTime(reader.GetOrdinal("Datum_rodjenja")),
+                            Email = reader.GetString(reader.GetOrdinal("Email_adresa")),
+                            PhoneNumber = reader.GetString(reader.GetOrdinal("Broj_telefona"))
+                        });
+                    }
+                }
+            }
+            return clients;
+        }
 
         public void AddClient(Client client)
         {
@@ -182,7 +193,7 @@ namespace PathFinders.Services
                 var command = new SQLiteCommand(query, connection);
                 command.Parameters.AddWithValue("@ime", client.FirstName);
                 command.Parameters.AddWithValue("@prezime", client.LastName);
-                command.Parameters.AddWithValue("@passos", PassportEncryptor.Encrypt(client.PassportNumber)); // Corrected
+                command.Parameters.AddWithValue("@passos", PassportEncryptor.Encrypt(client.PassportNumber));
                 command.Parameters.AddWithValue("@datumRodjenja", client.DateOfBirth.ToString("yyyy-MM-dd"));
                 command.Parameters.AddWithValue("@email", client.Email);
                 command.Parameters.AddWithValue("@telefon", client.PhoneNumber);
@@ -252,37 +263,76 @@ namespace PathFinders.Services
             }
         }
 
-        public DataTable GetClients()
+        public List<Client> GetClients()
         {
+            var clients = new List<Client>();
             using (var connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
-                var adapter = new SQLiteDataAdapter("SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients", connection); // Corrected
-                var dataTable = new DataTable();
-                adapter.Fill(dataTable);
-                return dataTable;
+                string query = "SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients";
+                using (var command = new SQLiteCommand(query, connection))
+                {
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            string encryptedPassport = reader.GetString(reader.GetOrdinal("Broj_pasosa"));
+                            string decryptedPassport = PassportEncryptor.Decrypt(encryptedPassport);
+
+                            clients.Add(new Client
+                            {
+                                Id = reader.GetInt32(reader.GetOrdinal("ID")),
+                                FirstName = reader.GetString(reader.GetOrdinal("Ime")),
+                                LastName = reader.GetString(reader.GetOrdinal("Prezime")),
+                                PassportNumber = decryptedPassport,
+                                DateOfBirth = reader.GetDateTime(reader.GetOrdinal("Datum_rodjenja")),
+                                Email = reader.GetString(reader.GetOrdinal("Email_adresa")),
+                                PhoneNumber = reader.GetString(reader.GetOrdinal("Broj_telefona"))
+                            });
+                        }
+                    }
+                }
             }
+            return clients;
         }
 
-        public DataTable GetPackages()
+        public List<TravelPackage> GetPackages()
         {
+            var packages = new List<TravelPackage>();
             using (var connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
-                var adapter = new SQLiteDataAdapter("SELECT p.ID, p.Naziv, p.Cena, p.Tip, p.Detalji, d.Naziv_destinacije FROM Packages p LEFT JOIN Destinations d ON p.DestinacijaID = d.ID", connection);
-                var dataTable = new DataTable();
-                adapter.Fill(dataTable);
-                return dataTable;
+                var query = "SELECT p.ID, p.Naziv, p.Cena, p.Tip, p.Detalji, d.Naziv_destinacije FROM Packages p LEFT JOIN Destinations d ON p.DestinacijaID = d.ID";
+                using (var command = new SQLiteCommand(query, connection))
+                {
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            packages.Add(new TravelPackage
+                            {
+                                Id = reader.GetInt32(reader.GetOrdinal("ID")),
+                                Name = reader.GetString(reader.GetOrdinal("Naziv")),
+                                Price = reader.GetDecimal(reader.GetOrdinal("Cena")),
+                                Type = reader.GetString(reader.GetOrdinal("Tip")),
+                                DestinationId = reader.GetInt32(reader.GetOrdinal("DestinacijaID")),
+                                DestinationName = reader.GetString(reader.GetOrdinal("Naziv_destinacije")),
+                                Details = reader.GetString(reader.GetOrdinal("Detalji"))
+                            });
+                        }
+                    }
+                }
             }
+            return packages;
         }
 
         public TravelPackage GetPackageById(int packageId)
         {
             TravelPackage package = null;
-            using (var connection = (SQLiteConnection)GetConnection()) // Or SQLiteConnection for SQLiteService
+            using (var connection = (SQLiteConnection)GetConnection())
             {
                 connection.Open();
-                var command = new SQLiteCommand("SELECT * FROM Packages WHERE ID = @packageId", connection); // Or SQLiteCommand
+                var command = new SQLiteCommand("SELECT * FROM Packages WHERE ID = @packageId", connection);
                 command.Parameters.AddWithValue("@packageId", packageId);
                 using (var reader = command.ExecuteReader())
                 {
@@ -303,22 +353,37 @@ namespace PathFinders.Services
             return package;
         }
 
-        public DataTable GetTravelPackageByType(string type)
+        public List<TravelPackage> GetTravelPackageByType(string type)
         {
+            var packages = new List<TravelPackage>();
             using (var connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
-                var query = "SELECT TP.ID, TP.Naziv, TP.Cena, TP.Tip, TP.Details, D.Name as DestinationName FROM TravelPackages TP JOIN Destinations D ON TP.DestinationID = D.ID WHERE TP.Tip = @type";
-                var adapter = new SQLiteDataAdapter(query, connection);
-                adapter.SelectCommand.Parameters.AddWithValue("@type", type);
-                var dataTable = new DataTable();
-                adapter.Fill(dataTable);
-                return dataTable;
+                var query = "SELECT TP.ID, TP.Naziv, TP.Cena, TP.Tip, TP.Detalji, D.Naziv_destinacije as DestinationName FROM Packages TP JOIN Destinations D ON TP.DestinacijaID = D.ID WHERE TP.Tip = @type";
+                var command = new SQLiteCommand(query, connection);
+                command.Parameters.AddWithValue("@type", type);
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        packages.Add(new TravelPackage
+                        {
+                            Id = reader.GetInt32(reader.GetOrdinal("ID")),
+                            Name = reader.GetString(reader.GetOrdinal("Naziv")),
+                            Price = reader.GetDecimal(reader.GetOrdinal("Cena")),
+                            Type = reader.GetString(reader.GetOrdinal("Tip")),
+                            Details = reader.GetString(reader.GetOrdinal("Detalji")),
+                            DestinationName = reader.GetString(reader.GetOrdinal("DestinationName"))
+                        });
+                    }
+                }
             }
+            return packages;
         }
 
-        public DataTable GetReservationsForClient(int clientId)
+        public List<Reservation> GetReservationsForClient(int clientId)
         {
+            var reservations = new List<Reservation>();
             using (var connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
@@ -338,20 +403,32 @@ namespace PathFinders.Services
                 WHERE r.ClientID = @clientId";
                 var command = new SQLiteCommand(query, connection);
                 command.Parameters.AddWithValue("@clientId", clientId);
-                var adapter = new SQLiteDataAdapter(command);
-                var dataTable = new DataTable();
-                adapter.Fill(dataTable);
-                return dataTable;
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        reservations.Add(new Reservation
+                        {
+                            Id = reader.GetInt32(reader.GetOrdinal("ID")),
+                            ClientId = reader.GetInt32(reader.GetOrdinal("ClientID")),
+                            TravelPackageId = reader.GetInt32(reader.GetOrdinal("TravelPackageID")),
+                            ReservationDate = reader.GetDateTime(reader.GetOrdinal("Reservation_date")),
+                            // The rest of the fields can be mapped to a Reservation object if your model allows it,
+                            // or you can create a new class to hold the combined data from the query
+                        });
+                    }
+                }
             }
+            return reservations;
         }
 
         public Reservation GetReservationById(int reservationId)
         {
             Reservation reservation = null;
-            using (var connection = (SQLiteConnection)GetConnection()) // Or SQLiteConnection
+            using (var connection = (SQLiteConnection)GetConnection())
             {
                 connection.Open();
-                var command = new SQLiteCommand("SELECT * FROM Reservations WHERE ID = @reservationId", connection); // Or SQLiteCommand
+                var command = new SQLiteCommand("SELECT * FROM Reservations WHERE ID = @reservationId", connection);
                 command.Parameters.AddWithValue("@reservationId", reservationId);
                 using (var reader = command.ExecuteReader())
                 {
@@ -359,11 +436,11 @@ namespace PathFinders.Services
                     {
                         reservation = new Reservation
                         {
-                            Id = reader.GetInt32("ID"),
-                            ClientId = reader.GetInt32("KlijentID"),
-                            TravelPackageId = reader.GetInt32("PaketID"),
-                            ReservationDate = reader.GetDateTime("Datum_rezervacije"),
-                            NumberOfPeople = reader.GetInt32("Broj_osoba")
+                            Id = reader.GetInt32(reader.GetOrdinal("ID")),
+                            ClientId = reader.GetInt32(reader.GetOrdinal("ClientID")),
+                            TravelPackageId = reader.GetInt32(reader.GetOrdinal("TravelPackageID")),
+                            ReservationDate = reader.GetDateTime(reader.GetOrdinal("Reservation_date")),
+                            NumberOfPeople = reader.GetInt32(reader.GetOrdinal("NumberOfPeople"))
                         };
                     }
                 }
@@ -377,7 +454,7 @@ namespace PathFinders.Services
             {
                 connection.Open();
                 var command = new SQLiteCommand("SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients WHERE Broj_pasosa = @passportHash", connection);
-                command.Parameters.AddWithValue("@passportHash", PassportEncryptor.Encrypt(passportNumber)); // Corrected
+                command.Parameters.AddWithValue("@passportHash", PassportEncryptor.Encrypt(passportNumber));
 
                 using (var reader = command.ExecuteReader())
                 {
@@ -388,7 +465,7 @@ namespace PathFinders.Services
                             Id = reader.GetInt32(0),
                             FirstName = reader.GetString(1),
                             LastName = reader.GetString(2),
-                            PassportNumber = passportNumber, // Use the provided passport number
+                            PassportNumber = passportNumber,
                             DateOfBirth = DateTime.Parse(reader.GetString(4)),
                             Email = reader.GetString(5),
                             PhoneNumber = reader.GetString(6)
@@ -432,7 +509,7 @@ namespace PathFinders.Services
             using (var connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
-                var command = new SQLiteCommand("SELECT * FROM Reservations WHERE PaketID = @packageId", connection);
+                var command = new SQLiteCommand("SELECT * FROM Reservations WHERE TravelPackageID = @packageId", connection);
                 command.Parameters.AddWithValue("@packageId", packageId);
                 using (var reader = command.ExecuteReader())
                 {
@@ -457,10 +534,10 @@ namespace PathFinders.Services
             using (var connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
-                var command = new SQLiteCommand("UPDATE Clients SET Ime = @ime, Prezime = @prezime, Broj_pasosa = @passos, Datum_rodjenja = @datumRodjenja, Email_adresa = @email, Broj_telefona = @telefon WHERE ID = @id", connection); // Corrected
+                var command = new SQLiteCommand("UPDATE Clients SET Ime = @ime, Prezime = @prezime, Broj_pasosa = @passos, Datum_rodjenja = @datumRodjenja, Email_adresa = @email, Broj_telefona = @telefon WHERE ID = @id", connection);
                 command.Parameters.AddWithValue("@ime", client.FirstName);
                 command.Parameters.AddWithValue("@prezime", client.LastName);
-                command.Parameters.AddWithValue("@passos", PassportEncryptor.Encrypt(client.PassportNumber)); // Corrected
+                command.Parameters.AddWithValue("@passos", PassportEncryptor.Encrypt(client.PassportNumber));
                 command.Parameters.AddWithValue("@datumRodjenja", client.DateOfBirth.ToString("yyyy-MM-dd"));
                 command.Parameters.AddWithValue("@email", client.Email);
                 command.Parameters.AddWithValue("@telefon", client.PhoneNumber);
@@ -500,7 +577,6 @@ namespace PathFinders.Services
             }
         }
 
-        // U klasi SQLiteService
         public void UpdatePackage(TravelPackage package)
         {
             using (var connection = (SQLiteConnection)GetConnection())
@@ -573,28 +649,46 @@ namespace PathFinders.Services
             }
         }
 
-        public DataTable GetAvailableDestinations()
+        public List<string> GetAvailableDestinations()
         {
+            var destinations = new List<string>();
             using (var connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
-                var adapter = new SQLiteDataAdapter("SELECT DISTINCT Naziv_destinacije FROM Destinations", connection);
-                var dataTable = new DataTable();
-                adapter.Fill(dataTable);
-                return dataTable;
+                var command = new SQLiteCommand("SELECT DISTINCT Naziv_destinacije FROM Destinations", connection);
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        destinations.Add(reader.GetString(0));
+                    }
+                }
             }
+            return destinations;
         }
 
-        public DataTable GetServices()
+        public List<Service> GetServices()
         {
+            var services = new List<Service>();
             using (var connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
-                var adapter = new SQLiteDataAdapter("SELECT ID, ServiceName, ServicePrice, ServiceDescription FROM Services", connection);
-                var dataTable = new DataTable();
-                adapter.Fill(dataTable);
-                return dataTable;
+                var command = new SQLiteCommand("SELECT ID, ServiceName, ServicePrice, ServiceDescription FROM Services", connection);
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        services.Add(new Service
+                        {
+                            Id = reader.GetInt32(reader.GetOrdinal("ID")),
+                            ServiceName = reader.GetString(reader.GetOrdinal("ServiceName")),
+                            ServicePrice = reader.GetDecimal(reader.GetOrdinal("ServicePrice")),
+                            ServiceDescription = reader.GetString(reader.GetOrdinal("ServiceDescription"))
+                        });
+                    }
+                }
             }
+            return services;
         }
 
         public List<Service> GetServicesForReservation(int reservationId)
@@ -604,7 +698,7 @@ namespace PathFinders.Services
             {
                 connection.Open();
                 var command = new SQLiteCommand(@"
-                    SELECT s.ID, s.ServiceName, s.ServicePrice, s.ServiceDescription 
+                    SELECT s.ID, s.ServiceName, s.ServicePrice, s.ServiceDescription
                     FROM Services s
                     JOIN ReservationServiceAssociations rsa ON s.ID = rsa.ServiceID
                     WHERE rsa.ReservationID = @reservationId

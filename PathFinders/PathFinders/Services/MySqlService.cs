@@ -6,6 +6,8 @@ using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Security.AccessControl;
+using System.Runtime.InteropServices;
 
 namespace PathFinders.Services
 {
@@ -106,66 +108,61 @@ namespace PathFinders.Services
             }
         }
 
-        //public DataTable GetClientByName(string firstName, string lastName)
-        //{
-        //    using (var connection = GetConnection())
-        //    {
-        //        connection.Open();
-        //        var query = "SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients WHERE Ime LIKE @firstName OR Prezime LIKE @lastName";
-        //        var adapter = new MySqlDataAdapter(query, (MySqlConnection)connection);
-        //        adapter.SelectCommand.Parameters.AddWithValue("@firstName", $"%{firstName}%");
-        //        adapter.SelectCommand.Parameters.AddWithValue("@lastName", $"%{lastName}%");
-        //        var dataTable = new DataTable();
-        //        adapter.Fill(dataTable);
-        //        return dataTable;
-        //    }
-        //}
-
-        public DataTable GetClientByName(string firstName, string lastName)
+        public List<Client> GetClientByName(string firstName, string lastName)
         {
-            using (var connection = GetConnection())
+            var clients = new List<Client>();
+            using (var connection = new MySqlConnection(_connectionString))
             {
                 connection.Open();
-
-                var query = new StringBuilder(
-                    "SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients WHERE ");
-
+                var query = new StringBuilder("SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients WHERE ");
                 var cmd = new MySqlCommand();
                 cmd.Connection = (MySqlConnection)connection;
 
                 if (!string.IsNullOrWhiteSpace(firstName) && !string.IsNullOrWhiteSpace(lastName))
                 {
-                    // oba uneta → AND
                     query.Append("Ime LIKE @firstName AND Prezime LIKE @lastName");
                     cmd.Parameters.AddWithValue("@firstName", $"%{firstName}%");
                     cmd.Parameters.AddWithValue("@lastName", $"%{lastName}%");
                 }
                 else if (!string.IsNullOrWhiteSpace(firstName))
                 {
-                    // samo ime (ili jedna reč) → gledaj i Ime i Prezime
                     query.Append("Ime LIKE @first OR Prezime LIKE @first");
                     cmd.Parameters.AddWithValue("@first", $"%{firstName}%");
                 }
                 else if (!string.IsNullOrWhiteSpace(lastName))
                 {
-                    // samo prezime
                     query.Append("Ime LIKE @last OR Prezime LIKE @last");
                     cmd.Parameters.AddWithValue("@last", $"%{lastName}%");
                 }
                 else
                 {
-                    // prazno → vrati sve
                     query.Clear();
                     query.Append("SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients");
                 }
 
                 cmd.CommandText = query.ToString();
 
-                var adapter = new MySqlDataAdapter(cmd);
-                var table = new DataTable();
-                adapter.Fill(table);
-                return table;
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        string encryptedPassport = reader.GetString("Broj_pasosa");
+                        string decryptedPassport = PassportEncryptor.Decrypt(encryptedPassport);
+
+                        clients.Add(new Client
+                        {
+                            Id = reader.GetInt32("ID"),
+                            FirstName = reader.GetString("Ime"),
+                            LastName = reader.GetString("Prezime"),
+                            PassportNumber = decryptedPassport,
+                            DateOfBirth = reader.GetDateTime("Datum_rodjenja"),
+                            Email = reader.GetString("Email_adresa"),
+                            PhoneNumber = reader.GetString("Broj_telefona")
+                        });
+                    }
+                }
             }
+            return clients;
         }
 
         public void AddClient(Client client)
@@ -176,7 +173,7 @@ namespace PathFinders.Services
                 var command = new MySqlCommand("INSERT INTO Clients (Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona) VALUES (@firstName, @lastName, @passportNumber, @dateOfBirth, @email, @phoneNumber)", (MySqlConnection)connection);
                 command.Parameters.AddWithValue("@firstName", client.FirstName);
                 command.Parameters.AddWithValue("@lastName", client.LastName);
-                command.Parameters.AddWithValue("@passportNumber", PassportEncryptor.Encrypt(client.PassportNumber)); // Updated to use Encrypt
+                command.Parameters.AddWithValue("@passportNumber", PassportEncryptor.Encrypt(client.PassportNumber));
                 command.Parameters.AddWithValue("@dateOfBirth", client.DateOfBirth);
                 command.Parameters.AddWithValue("@email", client.Email);
                 command.Parameters.AddWithValue("@phoneNumber", client.PhoneNumber);
@@ -242,37 +239,76 @@ namespace PathFinders.Services
             }
         }
 
-        public DataTable GetClients()
+        public List<Client> GetClients()
         {
-            using (var connection = GetConnection())
+            var clients = new List<Client>();
+            using (var connection = new MySqlConnection(_connectionString))
             {
                 connection.Open();
-                var adapter = new MySqlDataAdapter("SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients", (MySqlConnection)connection);
-                var dataTable = new DataTable();
-                adapter.Fill(dataTable);
-                return dataTable;
+                string query = "SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients";
+                using (var command = new MySqlCommand(query, connection))
+                {
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            string encryptedPassport = reader.GetString("Broj_pasosa");
+                            string decryptedPassport = PassportEncryptor.Decrypt(encryptedPassport);
+
+                            clients.Add(new Client
+                            {
+                                Id = reader.GetInt32("ID"),
+                                FirstName = reader.GetString("Ime"),
+                                LastName = reader.GetString("Prezime"),
+                                PassportNumber = decryptedPassport,
+                                DateOfBirth = reader.GetDateTime("Datum_rodjenja"),
+                                Email = reader.GetString("Email_adresa"),
+                                PhoneNumber = reader.GetString("Broj_telefona")
+                            });
+                        }
+                    }
+                }
             }
+            return clients;
         }
 
-        public DataTable GetPackages()
+        public List<TravelPackage> GetPackages()
         {
-            using (var connection = GetConnection())
+            var packages = new List<TravelPackage>();
+            using (var connection = new MySqlConnection(_connectionString))
             {
                 connection.Open();
-                var adapter = new MySqlDataAdapter("SELECT p.*, d.Naziv_destinacije FROM Packages p LEFT JOIN Destinations d ON p.DestinacijaID = d.ID", (MySqlConnection)connection);
-                var dataTable = new DataTable();
-                adapter.Fill(dataTable);
-                return dataTable;
+                var query = "SELECT p.*, d.Naziv_destinacije FROM Packages p LEFT JOIN Destinations d ON p.DestinacijaID = d.ID";
+                using (var command = new MySqlCommand(query, connection))
+                {
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            packages.Add(new TravelPackage
+                            {
+                                Id = reader.GetInt32("ID"),
+                                Name = reader.GetString("Naziv"),
+                                Price = reader.GetDecimal("Cena"),
+                                Type = reader.GetString("Tip"),
+                                DestinationId = reader.GetInt32("DestinacijaID"),
+                                DestinationName = reader.GetString("Naziv_destinacije"),
+                                Details = reader.GetString("Detalji")
+                            });
+                        }
+                    }
+                }
             }
+            return packages;
         }
 
         public TravelPackage GetPackageById(int packageId)
         {
             TravelPackage package = null;
-            using (var connection = (MySqlConnection)GetConnection()) // Or SQLiteConnection for SQLiteService
+            using (var connection = (MySqlConnection)GetConnection())
             {
                 connection.Open();
-                var command = new MySqlCommand("SELECT * FROM Packages WHERE ID = @packageId", connection); // Or SQLiteCommand
+                var command = new MySqlCommand("SELECT * FROM Packages WHERE ID = @packageId", connection);
                 command.Parameters.AddWithValue("@packageId", packageId);
                 using (var reader = command.ExecuteReader())
                 {
@@ -293,48 +329,75 @@ namespace PathFinders.Services
             return package;
         }
 
-        public DataTable GetTravelPackageByType(string type)
+        public List<TravelPackage> GetTravelPackageByType(string type)
         {
-            using (var connection = GetConnection())
+            var packages = new List<TravelPackage>();
+            using (var connection = new MySqlConnection(_connectionString))
             {
                 connection.Open();
-                var query = "SELECT TP.ID, TP.Naziv, TP.Cena, TP.Tip, TP.Details, D.Name as DestinationName FROM TravelPackages TP JOIN Destinations D ON TP.DestinationID = D.ID WHERE TP.Tip = @type";
-                var adapter = new MySqlDataAdapter(query, (MySqlConnection)connection);
-                adapter.SelectCommand.Parameters.AddWithValue("@type", type);
-                var dataTable = new DataTable();
-                adapter.Fill(dataTable);
-                return dataTable;
+                var query = "SELECT TP.ID, TP.Naziv, TP.Cena, TP.Tip, TP.Detalji, D.Naziv_destinacije as DestinationName FROM Packages TP JOIN Destinations D ON TP.DestinacijaID = D.ID WHERE TP.Tip = @type";
+                var command = new MySqlCommand(query, connection);
+                command.Parameters.AddWithValue("@type", type);
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        packages.Add(new TravelPackage
+                        {
+                            Id = reader.GetInt32("ID"),
+                            Name = reader.GetString("Naziv"),
+                            Price = reader.GetDecimal("Cena"),
+                            Type = reader.GetString("Tip"),
+                            Details = reader.GetString("Detalji"),
+                            DestinationName = reader.GetString("DestinationName")
+                        });
+                    }
+                }
             }
+            return packages;
         }
 
-        public DataTable GetReservationsForClient(int clientId)
+        public List<Reservation> GetReservationsForClient(int clientId)
         {
-            using (var connection = GetConnection())
+            var reservations = new List<Reservation>();
+            using (var connection = new MySqlConnection(_connectionString))
             {
                 connection.Open();
-                var adapter = new MySqlDataAdapter(@"
-                    SELECT r.ID, r.ClientID, r.TravelPackageID, r.Reservation_date, r.NumberOfPeople, 
+                var command = new MySqlCommand(@"
+                    SELECT r.ID, r.ClientID, r.TravelPackageID, r.Reservation_date, r.NumberOfPeople,
                            p.Naziv AS PackageName, p.Cena AS PackagePrice, p.Tip AS PackageType, p.Detalji AS PackageDetails,
                            d.Naziv_destinacije AS DestinationName
                     FROM Reservations r
                     JOIN Packages p ON r.TravelPackageID = p.ID
                     LEFT JOIN Destinations d ON p.DestinacijaID = d.ID
                     WHERE r.ClientID = @clientId
-                ", (MySqlConnection)connection);
-                adapter.SelectCommand.Parameters.AddWithValue("@clientId", clientId);
-                var dataTable = new DataTable();
-                adapter.Fill(dataTable);
-                return dataTable;
+                ", connection);
+                command.Parameters.AddWithValue("@clientId", clientId);
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        reservations.Add(new Reservation
+                        {
+                            Id = reader.GetInt32("ID"),
+                            ClientId = reader.GetInt32("ClientID"),
+                            TravelPackageId = reader.GetInt32("TravelPackageID"),
+                            ReservationDate = reader.GetDateTime("Reservation_date"),
+                            NumberOfPeople = reader.GetInt32("NumberOfPeople")
+                        });
+                    }
+                }
             }
+            return reservations;
         }
 
         public Reservation GetReservationById(int reservationId)
         {
             Reservation reservation = null;
-            using (var connection = (MySqlConnection)GetConnection()) // Or SQLiteConnection
+            using (var connection = (MySqlConnection)GetConnection())
             {
                 connection.Open();
-                var command = new MySqlCommand("SELECT * FROM Reservations WHERE ID = @reservationId", connection); // Or SQLiteCommand
+                var command = new MySqlCommand("SELECT * FROM Reservations WHERE ID = @reservationId", connection);
                 command.Parameters.AddWithValue("@reservationId", reservationId);
                 using (var reader = command.ExecuteReader())
                 {
@@ -371,7 +434,7 @@ namespace PathFinders.Services
                             Id = reader.GetInt32(0),
                             FirstName = reader.GetString(1),
                             LastName = reader.GetString(2),
-                            PassportNumber = passportNumber, // Use the provided, unencrypted passport number
+                            PassportNumber = passportNumber,
                             DateOfBirth = reader.GetDateTime(4),
                             Email = reader.GetString(5),
                             PhoneNumber = reader.GetString(6)
@@ -387,8 +450,6 @@ namespace PathFinders.Services
             using (var connection = GetConnection())
             {
                 connection.Open();
-
-                // Check if destination exists
                 var checkCommand = new MySqlCommand("SELECT ID FROM Destinations WHERE Naziv_destinacije = @destinationName", (MySqlConnection)connection);
                 checkCommand.Parameters.AddWithValue("@destinationName", destinationName);
                 var result = checkCommand.ExecuteScalar();
@@ -396,8 +457,6 @@ namespace PathFinders.Services
                 {
                     return Convert.ToInt32(result);
                 }
-
-                // If not, create it
                 var insertCommand = new MySqlCommand("INSERT INTO Destinations (Naziv_destinacije) VALUES (@destinationName)", (MySqlConnection)connection);
                 insertCommand.Parameters.AddWithValue("@destinationName", destinationName);
                 insertCommand.ExecuteNonQuery();
@@ -412,7 +471,7 @@ namespace PathFinders.Services
             using (var connection = new MySqlConnection(_connectionString))
             {
                 connection.Open();
-                var command = new MySqlCommand("SELECT * FROM Reservations WHERE PaketID = @packageId", connection);
+                var command = new MySqlCommand("SELECT * FROM Reservations WHERE TravelPackageID = @packageId", connection);
                 command.Parameters.AddWithValue("@packageId", packageId);
                 using (var reader = command.ExecuteReader())
                 {
@@ -421,10 +480,10 @@ namespace PathFinders.Services
                         reservations.Add(new Reservation
                         {
                             Id = reader.GetInt32("ID"),
-                            ClientId = reader.GetInt32("KlijentID"),
-                            TravelPackageId = reader.GetInt32("PaketID"),
-                            ReservationDate = reader.GetDateTime("Datum_rezervacije"),
-                            NumberOfPeople = reader.GetInt32("Broj_osoba")
+                            ClientId = reader.GetInt32("ClientID"),
+                            TravelPackageId = reader.GetInt32("TravelPackageID"),
+                            ReservationDate = reader.GetDateTime("Reservation_date"),
+                            NumberOfPeople = reader.GetInt32("NumberOfPeople")
                         });
                     }
                 }
@@ -441,7 +500,7 @@ namespace PathFinders.Services
                 command.Parameters.AddWithValue("@id", client.Id);
                 command.Parameters.AddWithValue("@firstName", client.FirstName);
                 command.Parameters.AddWithValue("@lastName", client.LastName);
-                command.Parameters.AddWithValue("@passportNumber", PassportEncryptor.Encrypt(client.PassportNumber)); // Updated to use Encrypt
+                command.Parameters.AddWithValue("@passportNumber", PassportEncryptor.Encrypt(client.PassportNumber));
                 command.Parameters.AddWithValue("@dateOfBirth", client.DateOfBirth);
                 command.Parameters.AddWithValue("@email", client.Email);
                 command.Parameters.AddWithValue("@phoneNumber", client.PhoneNumber);
@@ -480,7 +539,6 @@ namespace PathFinders.Services
             }
         }
 
-        // U klasi MySqlService
         public void UpdatePackage(TravelPackage package)
         {
             using (var connection = (MySqlConnection)GetConnection())
@@ -553,28 +611,46 @@ namespace PathFinders.Services
             }
         }
 
-        public DataTable GetAvailableDestinations()
+        public List<string> GetAvailableDestinations()
         {
+            var destinations = new List<string>();
             using (var connection = GetConnection())
             {
                 connection.Open();
-                var adapter = new MySqlDataAdapter("SELECT DISTINCT Naziv_destinacije FROM Destinations", (MySqlConnection)connection);
-                var dataTable = new DataTable();
-                adapter.Fill(dataTable);
-                return dataTable;
+                var command = new MySqlCommand("SELECT DISTINCT Naziv_destinacije FROM Destinations", (MySqlConnection)connection);
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        destinations.Add(reader.GetString(0));
+                    }
+                }
             }
+            return destinations;
         }
 
-        public DataTable GetServices()
+        public List<Service> GetServices()
         {
+            var services = new List<Service>();
             using (var connection = GetConnection())
             {
                 connection.Open();
-                var adapter = new MySqlDataAdapter("SELECT * FROM Services", (MySqlConnection)connection);
-                var dataTable = new DataTable();
-                adapter.Fill(dataTable);
-                return dataTable;
+                var command = new MySqlCommand("SELECT * FROM Services", (MySqlConnection)connection);
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        services.Add(new Service
+                        {
+                            Id = reader.GetInt32("ID"),
+                            ServiceName = reader.GetString("ServiceName"),
+                            ServicePrice = reader.GetDecimal("ServicePrice"),
+                            ServiceDescription = reader.GetString("ServiceDescription")
+                        });
+                    }
+                }
             }
+            return services;
         }
 
         public List<Service> GetServicesForReservation(int reservationId)
