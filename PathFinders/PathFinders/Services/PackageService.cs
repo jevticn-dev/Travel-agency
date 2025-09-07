@@ -54,6 +54,26 @@ namespace PathFinders.Services
             return packages;
         }
 
+        public List<TravelPackage> GetPackagesByType(string type)
+        {
+            DataTable packagesTable = _databaseService.GetTravelPackageByType(type);
+            var packages = new List<TravelPackage>();
+
+            foreach (DataRow row in packagesTable.Rows)
+            {
+                packages.Add(new TravelPackage
+                {
+                    Id = row.Field<int>("ID"),
+                    Name = row.Field<string>("Naziv"),
+                    Price = row.Field<decimal>("Cena"),
+                    Type = row.Field<string>("Tip"),
+                    DestinationId = row.Field<int?>("DestinacijaID"),
+                    Details = row.Field<string>("Detalji")
+                });
+            }
+            return packages;
+        }
+
         public void UpdatePackage(TravelPackage package)
         {
             _databaseService.UpdatePackage(package);

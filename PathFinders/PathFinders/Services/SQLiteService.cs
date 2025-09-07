@@ -116,6 +116,21 @@ namespace PathFinders.Services
             }
         }
 
+        public DataTable GetClientByName(string firstName, string lastName)
+        {
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+                var query = "SELECT ID, Ime, Prezime, Broj_pasosa, Datum_rodjenja, Email_adresa, Broj_telefona FROM Clients WHERE Ime LIKE @firstName OR Prezime LIKE @lastName";
+                var adapter = new SQLiteDataAdapter(query, connection);
+                adapter.SelectCommand.Parameters.AddWithValue("@firstName", $"%{firstName}%");
+                adapter.SelectCommand.Parameters.AddWithValue("@lastName", $"%{lastName}%");
+                var dataTable = new DataTable();
+                adapter.Fill(dataTable);
+                return dataTable;
+            }
+        }
+
         public void AddClient(Client client)
         {
             using (var connection = new SQLiteConnection(_connectionString))
@@ -240,6 +255,20 @@ namespace PathFinders.Services
                 }
             }
             return package;
+        }
+
+        public DataTable GetTravelPackageByType(string type)
+        {
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+                var query = "SELECT TP.ID, TP.Naziv, TP.Cena, TP.Tip, TP.Details, D.Name as DestinationName FROM TravelPackages TP JOIN Destinations D ON TP.DestinationID = D.ID WHERE TP.Tip = @type";
+                var adapter = new SQLiteDataAdapter(query, connection);
+                adapter.SelectCommand.Parameters.AddWithValue("@type", type);
+                var dataTable = new DataTable();
+                adapter.Fill(dataTable);
+                return dataTable;
+            }
         }
 
         public DataTable GetReservationsForClient(int clientId)

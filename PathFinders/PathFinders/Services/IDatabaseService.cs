@@ -23,7 +23,9 @@ namespace PathFinders.Services
 
         // citanje
         DataTable GetClients();
+        DataTable GetClientByName(string firstName, string lastName);
         DataTable GetPackages();
+        DataTable GetTravelPackageByType(string type);
         DataTable GetReservationsForClient(int clientId);
         Client GetClientByPassportNumber(string passportNumber);
         int GetOrCreateDestination(string destinationName);
