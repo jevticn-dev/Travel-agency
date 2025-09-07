@@ -19,7 +19,7 @@ namespace PathFinders.GUI
         private Panel sidebar;
         private Panel mainPanel;
         private Label lblLogo;
-        private Button btnKlijenti, btnPaketi, btnRezervacije, btnBackup;
+        private Button btnKlijenti, btnPaketi, btnRezervacije, btnIzlaz;
         private Button aktivnoDugme = null;
         private Panel indikator;
 
@@ -82,13 +82,13 @@ namespace PathFinders.GUI
             btnPaketi = NapraviDugme("📦 Paketi", 160);
             btnRezervacije = NapraviDugme("📅 Rezervacije", 220);
             btnUsluge = NapraviDugme("🛠️ Usluge", 280 );
-            btnBackup = NapraviDugme("💾 Backup", 340);
+            btnIzlaz = NapraviDugme("⏻ Izlaz", 340);
             
 
             sidebar.Controls.Add(lblLogo);
             
 
-            sidebar.Controls.AddRange(new Control[] { btnKlijenti, btnPaketi, btnRezervacije, btnUsluge,btnBackup });
+            sidebar.Controls.AddRange(new Control[] { btnKlijenti, btnPaketi, btnRezervacije, btnUsluge,btnIzlaz });
             btnUsluge.Click += (s, e) =>
             {
                 PrikaziTabelu("Usluge");
@@ -120,10 +120,11 @@ namespace PathFinders.GUI
                 PrikaziTabelu("Rezervacije");
                 OznaciDugme(btnRezervacije);
             };
-            btnBackup.Click += (s, e) =>
+            btnIzlaz.Click += (s, e) =>
             {
-                mainPanel.Controls.Clear();
-                OznaciDugme(btnBackup);
+                this.Hide();
+                var configScreen = new FormaIzborBaze();
+                configScreen.Show();
             };
 
 
