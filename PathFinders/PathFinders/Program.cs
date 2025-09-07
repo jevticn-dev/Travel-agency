@@ -18,7 +18,7 @@ namespace PathFinders
             // To customize application configuration such as set high DPI settings or default font,
             // see https://aka.ms/applicationconfiguration.
             ApplicationConfiguration.Initialize();
-            Application.Run(new FormaIzborBaze());
+            Application.Run(new MainScreen());
         }
 
         public static void TestDatabasePatterns()

@@ -1,105 +1,67 @@
 ﻿using System;
 using System.Drawing;
-using System.IO.Packaging;
 using System.Windows.Forms;
-using PathFinders.Models;
 using PathFinders.GUI;
 
 public class FormaNovaRezervacija : Form
 {
-    private Label lblPaket;
-    private TextBox txtPaket;
-    private Button btnIzbor;
-
-    private Label lblBrojOsoba;
+    private Label lblPaket, lblUsluga, lblBrojOsoba;
+    private TextBox txtPaket, txtUsluga;
+    private Button btnIzborPaketa, btnIzborUsluge, btnUndo, btnRedo;
     private NumericUpDown numBroj;
-
-    private Button btnDodaj;
-    private Button btnOdustani;
-
-    // NEMA Package; koristimo SelectedPackage iz FormaIzborPaketa:
-    private FormaIzborPaketa.SelectedPackage _izabrani;
-
-    public class RezervacijaResult
-    {
-        public string PaketPrikaz { get; set; }
-        public string Destinacija { get; set; }
-        public int BrojOsoba { get; set; }
-        public DateTime DatumRezervacije { get; set; }
-    }
-
-    public RezervacijaResult Rezultat { get; private set; }
+    private Button btnDodaj, btnOdustani;
 
     public FormaNovaRezervacija()
     {
         Text = "Dodavanje rezervacije";
         StartPosition = FormStartPosition.CenterParent;
-        Size = new Size(600, 240);
+        Size = new Size(640, 360);
         BackColor = Color.White;
 
         lblPaket = new Label { Text = "Izaberi paket:", Left = 12, Top = 20, AutoSize = true };
         Controls.Add(lblPaket);
 
-        txtPaket = new TextBox
-        {
-            Left = 12,
-            Top = 44,
-            Width = 420,
-            ReadOnly = true
-            // Ako PlaceholderText baca grešku na tvom .NET-u, samo izostavi:
-            // PlaceholderText = "Vaš paket"
-        };
+        txtPaket = new TextBox { Left = 12, Top = 44, Width = 440, ReadOnly = true };
         Controls.Add(txtPaket);
 
-        btnIzbor = new Button { Text = "Izbor", Left = 440, Top = 42, Width = 120 };
-        btnIzbor.Click += (s, e) => OnIzborPaketa();
-        Controls.Add(btnIzbor);
+        btnIzborPaketa = new Button { Text = "Izbor", Left = 460, Top = 42, Width = 150 };
+        btnIzborPaketa.Click += (s, e) =>
+        {
+            using (var dlg = new FormaIzborPaketa())
+            {
+                dlg.ShowDialog(this); // ne moraš da koristiš rezultat
+            }
+        };
+        Controls.Add(btnIzborPaketa);
 
-        lblBrojOsoba = new Label { Text = "Broj osoba:", Left = 12, Top = 94, AutoSize = true };
+        lblUsluga = new Label { Text = "Izaberi uslugu (opciono):", Left = 12, Top = 92, AutoSize = true };
+        Controls.Add(lblUsluga);
+
+        txtUsluga = new TextBox { Left = 12, Top = 116, Width = 440, ReadOnly = true };
+        Controls.Add(txtUsluga);
+
+        btnIzborUsluge = new Button { Text = "Izbor", Left = 460, Top = 114, Width = 150 };
+        btnIzborUsluge.Click += (s, e) =>
+        {
+            using (var dlg = new FormaIzborUslugaVise())
+            {
+                dlg.ShowDialog(this); // ovde se samo otvara forma
+            }
+        };
+        Controls.Add(btnIzborUsluge);
+
+
+        lblBrojOsoba = new Label { Text = "Broj osoba:", Left = 12, Top = 200, AutoSize = true };
         Controls.Add(lblBrojOsoba);
 
-        numBroj = new NumericUpDown { Left = 12, Top = 118, Width = 120, Minimum = 1, Maximum = 1000, Value = 1 };
+        numBroj = new NumericUpDown { Left = 12, Top = 224, Width = 120, Minimum = 1, Maximum = 1000, Value = 1 };
         Controls.Add(numBroj);
 
-        btnDodaj = new Button { Text = "Dodaj rezervaciju", Left = 330, Top = 160, Width = 230 };
-        btnDodaj.Click += (s, e) => OnDodajRezervaciju();
+        btnDodaj = new Button { Text = "Dodaj rezervaciju", Left = 380, Top = 270, Width = 230 };
         Controls.Add(btnDodaj);
 
-        btnOdustani = new Button { Text = "Otkaži", Left = 220, Top = 160, Width = 100 };
+        btnOdustani = new Button { Text = "Otkaži", Left = 270, Top = 270, Width = 100 };
         btnOdustani.Click += (s, e) => DialogResult = DialogResult.Cancel;
         Controls.Add(btnOdustani);
     }
-
-    private void OnIzborPaketa()
-    {
-        using (var dlg = new FormaIzborPaketa())
-        {
-            if (dlg.ShowDialog(this) == DialogResult.OK)
-            {
-                _izabrani = dlg.Izabrani;
-                txtPaket.Text = _izabrani?.Display ?? "";
-            }
-        }
-    }
-
-    private void OnDodajRezervaciju()
-    {
-        if (_izabrani == null)
-        {
-            MessageBox.Show("Najpre izaberi paket.", "Info",
-                MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
-        }
-
-        Rezultat = new RezervacijaResult
-        {
-            PaketPrikaz = _izabrani.Display,
-            Destinacija = _izabrani.Destinacija,
-            BrojOsoba = (int)numBroj.Value,
-            DatumRezervacije = DateTime.Today
-        };
-
-        DialogResult = DialogResult.OK;
-    }
-
 }
