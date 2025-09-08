@@ -26,6 +26,8 @@ namespace PathFinders.Services
         {
             // Now directly returns a List<Service>, no DataTable conversion is needed
             return _databaseService.GetServices();
+
+
         }
 
         public void UpdateService(Service service)

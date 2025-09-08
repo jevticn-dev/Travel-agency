@@ -1,16 +1,17 @@
-﻿using System;
+﻿using PathFinders.Models;
+using PathFinders.Patterns.Facade;
+using PathFinders.Services; // Add this using directive for IDatabaseService
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Diagnostics;
 using System.Drawing;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using PathFinders.Patterns.Facade;
-using PathFinders.Services; // Add this using directive for IDatabaseService
-using PathFinders.Models;
 
 namespace PathFinders.GUI
 {
@@ -35,6 +36,8 @@ namespace PathFinders.GUI
         private readonly string _agencyName;
         private readonly IDatabaseService _dbService;
         private readonly TravelAgencyFacade _facade;
+
+        private DataGridView dgvUsluge;
 
         public MainScreen(string agencyName, IDatabaseService dbService)
         {
@@ -91,7 +94,7 @@ namespace PathFinders.GUI
             sidebar.Controls.AddRange(new Control[] { btnKlijenti, btnPaketi, btnRezervacije, btnUsluge,btnIzlaz });
             btnUsluge.Click += (s, e) =>
             {
-                PrikaziTabelu("Usluge");
+                PrikaziTabeluAsync("Usluge");
                 OznaciDugme(btnUsluge);
             };
 
@@ -107,17 +110,17 @@ namespace PathFinders.GUI
             // Event handlers
             btnKlijenti.Click += (s, e) =>
             {
-                PrikaziTabelu("Klijenti");
+                PrikaziTabeluAsync("Klijenti");
                 OznaciDugme(btnKlijenti);
             };
             btnPaketi.Click += (s, e) =>
             {
-                PrikaziTabelu("Paketi");
+                PrikaziTabeluAsync("Paketi");
                 OznaciDugme(btnPaketi);
             };
             btnRezervacije.Click += (s, e) =>
             {
-                PrikaziTabelu("Rezervacije");
+                PrikaziTabeluAsync("Rezervacije");
                 OznaciDugme(btnRezervacije);
             };
             btnIzlaz.Click += (s, e) =>
@@ -128,7 +131,7 @@ namespace PathFinders.GUI
             };
 
 
-            PrikaziTabelu("Klijenti");
+            PrikaziTabeluAsync("Klijenti");
             OznaciDugme(btnKlijenti);
         }
 
@@ -256,8 +259,26 @@ namespace PathFinders.GUI
             dgvKlijenti.CurrentCell = null;
         }
 
+        private async Task LoadServicesAsync(DataGridView dgv)
+        {
+            dgv.Rows.Clear();
+            var services = await _facade.GetServicesAsync();
+            PopulateServicesGrid(dgv, services);
+        }
 
-        private void PrikaziTabelu(string tip)
+        private void PopulateServicesGrid(DataGridView dgv, IEnumerable<Service> services)
+        {
+            dgv.Rows.Clear();
+            foreach (var s in services)
+            {
+                dgv.Rows.Add(s.Id, s.ServiceName, s.ServicePrice.ToString("C"));  // Formatiranje cene
+            }
+            dgv.ClearSelection();
+            dgv.CurrentCell = null;
+        }
+
+
+        private async Task PrikaziTabeluAsync(string tip)
         {
             mainPanel.Controls.Clear();
 
@@ -302,21 +323,26 @@ namespace PathFinders.GUI
                 topBar.Controls.Add(btnOtkazi);
             }
 
-
-            this.txtPretraga = new TextBox
+            if (tip == "Usluge")
             {
-                PlaceholderText = $"Pretraga ({tip})...",
-                Width = 320,
-                Top = 13,
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
-            };
-
-            topBar.Controls.AddRange(new Control[] { btnDodaj, btnIzmeni, btnUndo, btnRedo, txtPretraga });
-            topBar.Resize += (s, e) =>
+                topBar.Controls.AddRange(new Control[] { btnDodaj, btnIzmeni, btnUndo, btnRedo});
+            }
+            else
             {
-                txtPretraga.Left = topBar.ClientSize.Width - txtPretraga.Width - 10;
-            };
+                this.txtPretraga = new TextBox
+                {
+                    PlaceholderText = $"Pretraga ({tip})...",
+                    Width = 320,
+                    Top = 13,
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right
+                };
 
+                topBar.Controls.AddRange(new Control[] { btnDodaj, btnIzmeni, btnUndo, btnRedo, txtPretraga });
+                topBar.Resize += (s, e) =>
+                {
+                    txtPretraga.Left = topBar.ClientSize.Width - txtPretraga.Width - 10;
+                };
+            }
 
             DataGridView dgv = new DataGridView
             {
@@ -1142,9 +1168,14 @@ namespace PathFinders.GUI
                 };
                 uslugeHost.Controls.Add(g);
 
+                var colId = new DataGridViewTextBoxColumn { Name = "ID", HeaderText = "ID", Visible = false };
                 var cNaziv = new DataGridViewTextBoxColumn { Name = "Naziv", HeaderText = "Naziv", Width = 420 };
                 var cCena = new DataGridViewTextBoxColumn { Name = "Cena", HeaderText = "Cena", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill };
-                g.Columns.AddRange(new DataGridViewColumn[] { cNaziv, cCena });
+
+                g.Columns.AddRange(new DataGridViewColumn[] { colId, cNaziv, cCena });
+
+                // Dodajte referencu na dgvUsluge
+                this.dgvUsluge = g;
 
                 g.CellClick += (ss, ee) =>
                 {
@@ -1155,58 +1186,57 @@ namespace PathFinders.GUI
                     }
                 };
 
-                g.Rows.Add("Transfer do aerodroma", "25€");
-                g.Rows.Add("Dodatno osiguranje", "15€");
-                g.Rows.Add("Iznajmljivanje opreme", "30€");
-                g.Rows.Add("Ulaznica za muzej", "12€");
-                g.Rows.Add("Spa paket na brodu", "59€");
+                //txtPretraga.TextChanged += (s, e2) =>
+                //{
+                //    string q = (txtPretraga.Text ?? "").Trim().ToLowerInvariant();
+                //    foreach (DataGridViewRow r in g.Rows)
+                //    {
+                //        bool match = string.IsNullOrEmpty(q);
+                //        if (!match)
+                //        {
+                //            foreach (DataGridViewCell c in r.Cells)
+                //            {
+                //                var val = c.Value?.ToString()?.ToLowerInvariant() ?? "";
+                //                if (val.Contains(q)) { match = true; break; }
+                //            }
+                //        }
+                //        r.Visible = match;
+                //    }
+                //};
 
-                txtPretraga.TextChanged += (s, e2) =>
-                {
-                    string q = (txtPretraga.Text ?? "").Trim().ToLowerInvariant();
-                    foreach (DataGridViewRow r in g.Rows)
-                    {
-                        bool match = string.IsNullOrEmpty(q);
-                        if (!match)
-                        {
-                            foreach (DataGridViewCell c in r.Cells)
-                            {
-                                var val = c.Value?.ToString()?.ToLowerInvariant() ?? "";
-                                if (val.Contains(q)) { match = true; break; }
-                            }
-                        }
-                        r.Visible = match;
-                    }
-                };
+                // Dodajte referencu na dgvUsluge
+                this.dgvUsluge = g;
 
-                btnDodaj.Click += (s, e2) =>
+                await LoadServicesAsync(g);
+
+                btnDodaj.Click += async (s, e2) =>
                 {
                     using (var dlg = new FormaNovaUsluga())
                     {
                         if (dlg.ShowDialog(this) == DialogResult.OK)
                         {
-                            g.Rows.Add(dlg.Naziv, dlg.Cena);
-                            g.ClearSelection();
-                            var last = g.Rows[g.Rows.Count - 1];
-                            if (last.Visible)
+                            var service = new Service
                             {
-                                last.Selected = true;
-                                g.CurrentCell = last.Cells["Naziv"];
-                            }
+                                ServiceName = dlg.Naziv,
+                                ServicePrice = decimal.Parse(dlg.Cena.Replace("€", "").Trim())
+                            };
+
+                            await _facade.AddServiceAsync(service);
+                            await LoadServicesAsync(dgvUsluge);
                         }
                     }
                 };
 
-                btnIzmeni.Click += (s, e2) =>
+                // Event handler za izmenu
+                btnIzmeni.Click += async (s, e2) =>
                 {
-                    if (g.SelectedRows.Count == 0)
+                    if (dgvUsluge.SelectedRows.Count == 0)
                     {
-                        MessageBox.Show("Prvo izaberite uslugu u tabeli.", "Info",
-                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show("Prvo izaberite uslugu u tabeli.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         return;
                     }
 
-                    var row = g.SelectedRows[0];
+                    var row = dgvUsluge.SelectedRows[0];
                     string naziv = row.Cells["Naziv"].Value?.ToString() ?? "";
                     string cena = row.Cells["Cena"].Value?.ToString() ?? "";
 
@@ -1214,11 +1244,15 @@ namespace PathFinders.GUI
                     {
                         if (dlg.ShowDialog(this) == DialogResult.OK)
                         {
-                            row.Cells["Naziv"].Value = dlg.Naziv;
-                            row.Cells["Cena"].Value = dlg.Cena;
-                            g.ClearSelection();
-                            row.Selected = true;
-                            g.CurrentCell = row.Cells["Naziv"];
+                            var service = new Service
+                            {
+                                Id = (int)row.Cells["ID"].Value, // Preuzmite ID
+                                ServiceName = dlg.Naziv,
+                                ServicePrice = decimal.Parse(dlg.Cena, NumberStyles.Currency),
+                            };
+
+                            await _facade.UpdateServiceAsync(service);
+                            await LoadServicesAsync(dgvUsluge);
                         }
                     }
                 };

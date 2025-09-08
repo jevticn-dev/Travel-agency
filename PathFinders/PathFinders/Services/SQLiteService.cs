@@ -683,7 +683,7 @@ namespace PathFinders.Services
                             Id = reader.GetInt32(reader.GetOrdinal("ID")),
                             ServiceName = reader.GetString(reader.GetOrdinal("ServiceName")),
                             ServicePrice = reader.GetDecimal(reader.GetOrdinal("ServicePrice")),
-                            ServiceDescription = reader.GetString(reader.GetOrdinal("ServiceDescription"))
+                            ServiceDescription = ""
                         });
                     }
                 }
