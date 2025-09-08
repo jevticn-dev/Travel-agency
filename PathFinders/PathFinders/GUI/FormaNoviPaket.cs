@@ -7,7 +7,7 @@ public class FormaNoviPaket : Form
     
     private TextBox txtNaziv, txtCena;
     private ComboBox cmbTip;
-
+    private TextBox txtTipKabine;
     // panel koji menja sadržaj (dinamička polja)
     private Panel dynamicPanel;
 
@@ -16,7 +16,8 @@ public class FormaNoviPaket : Form
     private DateTimePicker dtpDatumPolaska;
 
     private Button btnSacuvaj, btnOdustani;
-
+    private NumericUpDown nudTrajanje;
+    public int Trajanje { get; private set; }
     public string Naziv { get; private set; }
     public string Tip { get; private set; }
     public string Cena { get; private set; }
@@ -29,8 +30,10 @@ public class FormaNoviPaket : Form
     public string Vodic { get; private set; }
     public string Brod { get; private set; }
     public string Ruta { get; private set; }
-    public DateTime? DatumPolaska { get; private set; }
-
+    public string Aktivnosti { get; private set; }
+    public DateTime DatumPolaska { get; private set; }
+    
+    public string TipKabine { get; private set; }
     public FormaNoviPaket()
     {
         Text = "Novi paket";
@@ -77,7 +80,7 @@ public class FormaNoviPaket : Form
             Naziv = txtNaziv.Text.Trim();
             Tip = cmbTip.SelectedItem.ToString();
             Cena = txtCena.Text.Trim();
-
+            
             
             if (Tip == "Aranžman za more")
             {
@@ -92,14 +95,16 @@ public class FormaNoviPaket : Form
             }
             else if (Tip == "Aranžman za planine")
             {
-                if (AnyEmpty(txtDestinacija, txtTipSmestaja, txtDodatneAkt))
+                if (AnyEmpty(txtDestinacija, txtTipSmestaja, txtDodatneAkt, txtTipPrevoza)) // dodato txtAktivnosti
                 {
-                    Error("Destinacija, Tip smeštaja i Dodatne aktivnosti su obavezni.");
+                    Error("Destinacija, Tip smeštaja, Dodatne aktivnosti i Aktivnosti su obavezni.");
                     return;
                 }
                 Destinacija = txtDestinacija.Text.Trim();
                 TipSmestaja = txtTipSmestaja.Text.Trim();
                 DodatneAktivnosti = txtDodatneAkt.Text.Trim();
+                TipPrevoza = txtTipPrevoza.Text.Trim();
+                //Aktivnosti = txtAktivnosti.Text.Trim(); // sada obavezno
             }
             else if (Tip == "Ekskurzije")
             {
@@ -108,19 +113,27 @@ public class FormaNoviPaket : Form
                     Error("Destinacija, Tip prevoza i Vodič su obavezni.");
                     return;
                 }
+                if (nudTrajanje == null || nudTrajanje.Value < 1)
+                {
+                    Error("Trajanje (u danima) je obavezno i mora biti ≥ 1.");
+                    return;
+                }
+
                 Destinacija = txtDestinacija.Text.Trim();
                 TipPrevoza = txtTipPrevoza.Text.Trim();
                 Vodic = txtVodic.Text.Trim();
+                Trajanje = (int)nudTrajanje.Value;
             }
             else if (Tip == "Krstarenja")
             {
-                if (AnyEmpty(txtBrod, txtRuta) || dtpDatumPolaska == null)
+                if (AnyEmpty(txtBrod, txtRuta, txtTipKabine) || dtpDatumPolaska == null)
                 {
-                    Error("Brod, Ruta i Datum polaska su obavezni.");
+                    Error("Brod, Ruta, Tip kabine i Datum polaska su obavezni.");
                     return;
                 }
                 Brod = txtBrod.Text.Trim();
                 Ruta = txtRuta.Text.Trim();
+                TipKabine = txtTipKabine.Text.Trim();         // NOVO
                 DatumPolaska = dtpDatumPolaska.Value.Date;
             }
 
@@ -152,26 +165,33 @@ public class FormaNoviPaket : Form
         else if (tip == "Aranžman za planine")
         {
             dynamicPanel.Controls.AddRange(new Control[] {
-                MakeLabel("Destinacija:", 0, y),        txtDestinacija = MakeTextBox(140, y, 320),
-                MakeLabel("Tip smeštaja:", 0, y+=40),   txtTipSmestaja = MakeTextBox(140, y, 320),
-                MakeLabel("Dodatne aktivnosti:", 0, y+=40), txtDodatneAkt = MakeTextBox(140, y, 320),
-            });
+            MakeLabel("Destinacija:", 0, y),             txtDestinacija = MakeTextBox(140, y, 320),
+            MakeLabel("Tip smeštaja:", 0, y+=40),        txtTipSmestaja = MakeTextBox(140, y, 320),
+            MakeLabel("Dodatne aktivnosti:", 0, y+=40),  txtDodatneAkt = MakeTextBox(140, y, 320),
+            MakeLabel("Tip prevoza:", 0, y+=40),  txtTipPrevoza = MakeTextBox(140, y, 320)
+        });
         }
         else if (tip == "Ekskurzije")
         {
             dynamicPanel.Controls.AddRange(new Control[] {
-               MakeLabel("Destinacija:", 0, y),        txtDestinacija = MakeTextBox(140, y, 320),
-                MakeLabel("Tip prevoza:", 0, y+=40),    txtTipPrevoza = MakeTextBox(140, y, 320),
-                MakeLabel("Vodič:", 0, y+=40),          txtVodic = MakeTextBox(140, y, 320),
-            });
+            MakeLabel("Destinacija:", 0, y),        txtDestinacija = MakeTextBox(140, y, 320),
+            MakeLabel("Tip prevoza:", 0, y+=40),    txtTipPrevoza = MakeTextBox(140, y, 320),
+            MakeLabel("Vodič:", 0, y+=40),          txtVodic = MakeTextBox(140, y, 320),
+            MakeLabel("Trajanje (dani):", 0, y+=40),
+            nudTrajanje = new NumericUpDown {
+                Left = 140, Top = y, Width = 320,
+                Minimum = 1, Maximum = 365, Value = 1
+            }
+        });
         }
         else if (tip == "Krstarenja")
         {
             dynamicPanel.Controls.AddRange(new Control[] {
-                MakeLabel("Brod:", 0, y),               txtBrod = MakeTextBox(140, y, 320),
-                MakeLabel("Ruta:", 0, y+=40),           txtRuta = MakeTextBox(140, y, 320),
-                MakeLabel("Datum polaska:", 0, y+=40),  dtpDatumPolaska = new DateTimePicker { Left=140, Top=y, Width=320, Format=DateTimePickerFormat.Short }
-            });
+            MakeLabel("Brod:", 0, y),               txtBrod = MakeTextBox(140, y, 320),
+            MakeLabel("Ruta:", 0, y+=40),           txtRuta = MakeTextBox(140, y, 320),
+            MakeLabel("Tip kabine:", 0, y+=40),     txtTipKabine = MakeTextBox(140, y, 320),   // NOVO
+            MakeLabel("Datum polaska:", 0, y+=40),  dtpDatumPolaska = new DateTimePicker { Left=140, Top=y, Width=320, Format=DateTimePickerFormat.Short }
+        });
         }
     }
 

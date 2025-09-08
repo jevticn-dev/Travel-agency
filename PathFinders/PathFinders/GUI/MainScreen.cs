@@ -9,8 +9,14 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using PathFinders.Patterns.Facade;
-using PathFinders.Services; // Add this using directive for IDatabaseService
+using PathFinders.Services;
 using PathFinders.Models;
+using PathFinders.Patterns.Builder;
+using System.Xml.Linq;
+using System.Text.Json;
+using System.Globalization;
+using System.Runtime.Intrinsics.Arm;
+
 
 namespace PathFinders.GUI
 {
@@ -48,7 +54,7 @@ namespace PathFinders.GUI
        
             // Forma
             this.Text = "Moja Turistička Agencija";
-            this.Size = new Size(1300, 600);
+            this.Size = new Size(1400, 600);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.White;
 
@@ -256,7 +262,163 @@ namespace PathFinders.GUI
             dgvKlijenti.CurrentCell = null;
         }
 
+        private static string FormatPrice(decimal? price)
+             => price.HasValue ? $"{price.Value:0.##}€" : "";
 
+        private static string ToDisplayDate(DateTime? dt)
+            => dt.HasValue ? dt.Value.ToString("dd.MM.yyyy") : "";
+
+        private void FillGrid(DataGridView grid, string type)
+        {
+            grid.Rows.Clear();
+            var items = _facade.GetPackagesByType(type);
+            switch (type)
+            {
+                
+                case "More": // u bazi
+
+                    string tipSmestaja = "";
+                    string tipPrevoza = "";
+                    string dest = "";
+                    foreach (var p in items)
+                    {
+                        using var doc = JsonDocument.Parse(p.Details);
+                        var root = doc.RootElement;
+
+                        if (root.TryGetProperty("TipSmestaja", out var ts)) tipSmestaja = ts.GetString() ?? "";
+                        if (root.TryGetProperty("TipPrevoza", out var tp)) tipPrevoza = tp.GetString() ?? "";
+                        if (root.TryGetProperty("Destinacija", out var ds)) dest = ds.GetString() ?? "";
+
+
+                        grid.Rows.Add(
+                            p.Id,
+                            p.Name,
+                            $"{p.Price:0.##}€",
+                            "Aranžman za more",      // u UI
+                            dest,
+                            tipSmestaja,
+                            tipPrevoza
+                        );
+                    }
+                    break;
+
+                case "Planine":
+                    tipSmestaja = "";
+                    tipPrevoza = "";
+                    dest = "";
+                    string dodatneAktivnosti = "";
+                    List<string> aktivnosti = new();
+
+                    foreach (var p in items)
+                    {
+                        using var doc = JsonDocument.Parse(p.Details);
+                        var root = doc.RootElement;
+
+                        if (root.TryGetProperty("TipSmestaja", out var ts)) tipSmestaja = ts.GetString() ?? "";
+                        if (root.TryGetProperty("TipPrevoza", out var tp)) tipPrevoza = tp.GetString() ?? "";
+                        if (root.TryGetProperty("Destinacija", out var ds)) dest = ds.GetString() ?? "";
+                        root.TryGetProperty("DodatneAktivnosti", out var da);
+                        aktivnosti.Clear();
+                        foreach (var el in da.EnumerateArray())
+                        {
+                            if (el.ValueKind == JsonValueKind.String)
+                            {
+                                var s = el.GetString();
+                                if (!string.IsNullOrWhiteSpace(s)) aktivnosti.Add(s);
+                            }
+                        }
+                        string spojeno = string.Join("-", aktivnosti);
+                        grid.Rows.Add(
+                            p.Id,
+                            p.Name,
+                            $"{p.Price:0.##}€",
+                            "Aranžman za planine",
+                            dest,
+                            tipSmestaja,
+                            tipPrevoza,
+                            spojeno
+                        );
+                    }
+                    break;
+
+                case "Ekskurzije":
+                    dest = "";
+                    tipPrevoza = "";
+                    string vodic = "";
+                    int trajanje = 0;
+
+                    
+                    foreach (var p in items)
+                    {
+                        using var doc = JsonDocument.Parse(p.Details);
+                        var root = doc.RootElement;
+
+                        if (root.TryGetProperty("TipPrevoza", out var tp)) tipPrevoza = tp.GetString() ?? "";
+                        if (root.TryGetProperty("Destinacija", out var ds)) dest = ds.GetString() ?? "";
+                        if (root.TryGetProperty("TrajanjeUDanima", out var tr) && tr.TryGetInt32(out var t))
+                        {
+                            trajanje = t;
+                        }
+                        if (root.TryGetProperty("Vodic", out var vo)) vodic = vo.GetString() ?? "";
+                        grid.Rows.Add(
+                            p.Id,
+                            p.Name,
+                            $"{p.Price:0.##}€",
+                            "Ekskurzije",
+                            dest,
+                            tipPrevoza,
+                            vodic,
+                            trajanje
+                        );
+                    }
+                    break;
+
+                case "Krstarenja":
+                    string brod = "";
+                    string ruta = "";
+                    DateTime polazak = new DateTime();
+                    string tipKabine = "";
+
+                    foreach (var p in items)
+                    {
+                        using var doc = JsonDocument.Parse(p.Details);
+                        var root = doc.RootElement;
+
+                        if (root.TryGetProperty("Brod", out var tp)) brod = tp.GetString() ?? "";
+                        if (root.TryGetProperty("Ruta", out var ds)) ruta = ds.GetString() ?? "";
+                        if (root.TryGetProperty("TipKabine", out var tk)) tipKabine = ds.GetString() ?? "";
+
+                        root.TryGetProperty("DatumPolaska", out var dp);
+                        var s = dp.GetString();
+
+                        if (!DateTime.TryParse(s, CultureInfo.InvariantCulture,
+                                       DateTimeStyles.AssumeLocal | DateTimeStyles.AdjustToUniversal,
+                                       out var d))
+                        {
+                            string[] formats = {
+                        "dd.MM.yyyy", "dd.MM.yyyy HH:mm",
+                        "yyyy-MM-dd", "yyyy-MM-dd HH:mm",
+                        "yyyy-MM-ddTHH:mm:ss", "yyyy-MM-ddTHH:mm:ssZ"
+                    };
+                            if (DateTime.TryParseExact(s, formats, CultureInfo.InvariantCulture,
+                                                       DateTimeStyles.AssumeLocal | DateTimeStyles.AdjustToUniversal,
+                                                       out var dex))
+                                d = dex;
+                        }
+                        grid.Rows.Add(
+                            p.Id,
+                            p.Name,
+                            $"{p.Price:0.##}€",
+                            "Krstarenja",
+                            brod,
+                            ruta,
+                            (d.Date).ToString("dd.MM.yyyy", CultureInfo.InvariantCulture),
+                            tipKabine
+                        );
+                    }
+                    break;
+            }
+        }
         private void PrikaziTabelu(string tip)
         {
             mainPanel.Controls.Clear();
@@ -312,6 +474,15 @@ namespace PathFinders.GUI
             };
 
             topBar.Controls.AddRange(new Control[] { btnDodaj, btnIzmeni, btnUndo, btnRedo, txtPretraga });
+
+            if (tip == "Paketi")
+            {
+                // nema pretrage na paketima
+                txtPretraga.Visible = false;
+                // i ne treba da se računa layout prema txtPretraga
+                topBar.Resize -= (s, e) => { txtPretraga.Left = topBar.ClientSize.Width - txtPretraga.Width - 10; };
+            }
+
             topBar.Resize += (s, e) =>
             {
                 txtPretraga.Left = topBar.ClientSize.Width - txtPretraga.Width - 10;
@@ -544,6 +715,10 @@ namespace PathFinders.GUI
                 frame.Controls.Add(paketiHost);
                 paketiHost.BringToFront();
 
+                var btnObrisi = NapraviAkcijskoDugme("🗑 Obriši", 230, 10);
+                topBar.Controls.Add(btnObrisi);
+
+
 
                 var cboTip = new ComboBox
                 {
@@ -553,62 +728,76 @@ namespace PathFinders.GUI
                 };
                 topBar.Controls.Add(cboTip);
 
-
                 topBar.Resize += (s, e2) =>
                 {
-                    txtPretraga.Left = topBar.ClientSize.Width - txtPretraga.Width - 10;
-                    cboTip.Left = txtPretraga.Left - cboTip.Width - 10;
+                    // bez txtPretraga – veži combobox na desni rub
+                    cboTip.Left = topBar.ClientSize.Width - cboTip.Width - 10;
                 };
+                cboTip.Left = topBar.ClientSize.Width - cboTip.Width - 10;
 
-                txtPretraga.Left = topBar.ClientSize.Width - txtPretraga.Width - 10;
-                cboTip.Left = txtPretraga.Left - cboTip.Width - 10;
+                //topBar.Resize += (s, e2) =>
+                //{
+                //    txtPretraga.Left = topBar.ClientSize.Width - txtPretraga.Width - 10;
+                //    cboTip.Left = txtPretraga.Left - cboTip.Width - 10;
+                //};
+
+                //txtPretraga.Left = topBar.ClientSize.Width - txtPretraga.Width - 10;
+                //cboTip.Left = txtPretraga.Left - cboTip.Width - 10;
 
 
                 var tips = new[] { "Aranžman za more", "Aranžman za planine", "Ekskurzije", "Krstarenja" };
 
 
-                var columnsByType = new Dictionary<string, (string name, int width, DataGridViewAutoSizeColumnMode mode)[]>
+                var columnsByType = new Dictionary<string, (string name, int width, DataGridViewAutoSizeColumnMode mode, bool visible)[]>
                 {
                     ["Aranžman za more"] = new[]
                     {
-                        ("Naziv", 200, DataGridViewAutoSizeColumnMode.None),
-                        ("Cena", 100, DataGridViewAutoSizeColumnMode.None),
-                        ("Tip", 160, DataGridViewAutoSizeColumnMode.None),
-                        ("Destinacija", 180, DataGridViewAutoSizeColumnMode.None),
-                        ("Tip smeštaja", 160, DataGridViewAutoSizeColumnMode.None),
-                        ("Tip prevoza", 160, DataGridViewAutoSizeColumnMode.Fill)
+                        ("ID", 0, DataGridViewAutoSizeColumnMode.None, false),
+                        ("Naziv", 200, DataGridViewAutoSizeColumnMode.None,true),
+                        ("Cena", 100, DataGridViewAutoSizeColumnMode.None,true),
+                        ("Tip", 160, DataGridViewAutoSizeColumnMode.None,true),
+                        ("Destinacija", 180, DataGridViewAutoSizeColumnMode.None,true),
+                        ("Tip smeštaja", 160, DataGridViewAutoSizeColumnMode.None,true),
+                        ("Tip prevoza", 160, DataGridViewAutoSizeColumnMode.Fill,true)
                     },
                     ["Aranžman za planine"] = new[]
                     {
-                        ("Naziv", 200, DataGridViewAutoSizeColumnMode.None),
-                        ("Cena", 100, DataGridViewAutoSizeColumnMode.None),
-                        ("Tip", 160, DataGridViewAutoSizeColumnMode.None),
-                        ("Destinacija", 180, DataGridViewAutoSizeColumnMode.None),
-                        ("Tip smeštaja", 160, DataGridViewAutoSizeColumnMode.None),
-                        ("Dodatne aktivnosti", 200, DataGridViewAutoSizeColumnMode.Fill)
+                        ("ID", 0, DataGridViewAutoSizeColumnMode.None, false),
+                        ("Naziv", 200, DataGridViewAutoSizeColumnMode.None,true),
+                        ("Cena", 80, DataGridViewAutoSizeColumnMode.None,true),
+                        ("Tip", 160, DataGridViewAutoSizeColumnMode.None,true),
+                        ("Destinacija", 180, DataGridViewAutoSizeColumnMode.None,true),
+                        ("Tip smeštaja", 160, DataGridViewAutoSizeColumnMode.None,true),
+                        ("Tip prevoza", 130, DataGridViewAutoSizeColumnMode.None,true),
+                        ("Dodatne aktivnosti", 200, DataGridViewAutoSizeColumnMode.Fill,true)
                     },
                     ["Ekskurzije"] = new[]
                     {
-                        ("Naziv", 220, DataGridViewAutoSizeColumnMode.None),
-                        ("Cena", 100, DataGridViewAutoSizeColumnMode.None),
-                        ("Tip", 160, DataGridViewAutoSizeColumnMode.None),
-                        ("Destinacija", 200, DataGridViewAutoSizeColumnMode.None),
-                        ("Tip prevoza", 160, DataGridViewAutoSizeColumnMode.None),
-                        ("Vodič", 200, DataGridViewAutoSizeColumnMode.Fill)
+
+                        ("ID", 0, DataGridViewAutoSizeColumnMode.None, false),
+                        ("Naziv", 220, DataGridViewAutoSizeColumnMode.None,true),
+                        ("Cena", 100, DataGridViewAutoSizeColumnMode.None,true),
+                        ("Tip", 160, DataGridViewAutoSizeColumnMode.None,true),
+                        ("Destinacija", 200, DataGridViewAutoSizeColumnMode.None,true),
+                        ("Tip prevoza", 160, DataGridViewAutoSizeColumnMode.None,true),
+                        ("Vodič", 200, DataGridViewAutoSizeColumnMode.Fill,true),
+                        ("Trajanje", 100, DataGridViewAutoSizeColumnMode.None,true)
                     },
                     ["Krstarenja"] = new[]
                     {
-                        ("Naziv", 240, DataGridViewAutoSizeColumnMode.None),
-                        ("Cena", 100, DataGridViewAutoSizeColumnMode.None),
-                        ("Tip", 160, DataGridViewAutoSizeColumnMode.None),
-                        ("Brod", 180, DataGridViewAutoSizeColumnMode.None),
-                        ("Ruta", 260, DataGridViewAutoSizeColumnMode.Fill),
-                        ("Polazak", 130, DataGridViewAutoSizeColumnMode.None)
+                        ("ID", 0, DataGridViewAutoSizeColumnMode.None, false),
+                        ("Naziv", 240, DataGridViewAutoSizeColumnMode.None,true),
+                        ("Cena", 100, DataGridViewAutoSizeColumnMode.None,true),
+                        ("Tip", 160, DataGridViewAutoSizeColumnMode.None,true),
+                        ("Brod", 180, DataGridViewAutoSizeColumnMode.None,true),
+                        ("Ruta", 260, DataGridViewAutoSizeColumnMode.Fill,true),
+                        ("Polazak", 130, DataGridViewAutoSizeColumnMode.None,true),
+                        ("Tip kabine", 100, DataGridViewAutoSizeColumnMode.None,true)
                     }
                 };
                 var grids = new Dictionary<string, DataGridView>();
 
-                DataGridView MakeGrid((string name, int width, DataGridViewAutoSizeColumnMode mode)[] cols)
+                DataGridView MakeGrid((string name, int width, DataGridViewAutoSizeColumnMode mode, bool visible)[] cols)
                 {
                     var g = new DataGridView
                     {
@@ -629,7 +818,7 @@ namespace PathFinders.GUI
                             SelectionBackColor = Color.LightGray,
                             SelectionForeColor = Color.Black
                         },
-                        AlternatingRowsDefaultCellStyle =
+                                        AlternatingRowsDefaultCellStyle =
                         {
                             BackColor = Color.FromArgb(245,245,245),
                             ForeColor = Color.Black
@@ -644,11 +833,22 @@ namespace PathFinders.GUI
                         {
                             Name = c.name,
                             HeaderText = c.name,
-                            AutoSizeMode = c.mode
+                            AutoSizeMode = c.mode,
+                            Visible = c.visible
                         };
                         if (c.mode == DataGridViewAutoSizeColumnMode.None) col.Width = c.width;
+
+                        // safety – dodatno “zakucaj” ID kolonu
+                        if (string.Equals(c.name, "ID", StringComparison.OrdinalIgnoreCase))
+                        {
+                            col.Visible = false;
+                            col.Width = 0;
+                            col.ReadOnly = true;
+                        }
+
                         g.Columns.Add(col);
                     }
+
 
                     g.CellClick += (ss, ee) =>
                     {
@@ -703,13 +903,19 @@ namespace PathFinders.GUI
 
                 // --- DEMO podaci (upis direktno u odgovarajuće kolone) ---
 
-                grids["Aranžman za more"].Rows.Add("Krf - leto 2026", "599€", "Aranžman za more", "Krf", "Hotel 4*", "Avion");
-                // planine
-                grids["Aranžman za planine"].Rows.Add("Kopaonik vikend", "199€", "Aranžman za planine", "Kopaonik", "Apartman", "Ski pass");
-                // ekskurzije
-                grids["Ekskurzije"].Rows.Add("Beč jednodnevna", "89€", "Ekskurzije", "Beč", "Autobus", "Licencirani vodič");
-                // krstarenja
-                grids["Krstarenja"].Rows.Add("Jadransko krstarenje", "1299€", "Krstarenja", "MSC Opera", "Split–Kotor–Krf–Bari", new DateTime(2026, 6, 15).ToString("dd.MM.yyyy"));
+                //var more = _facade.GetPackagesByType("More");
+                //var planine = _facade.GetPackagesByType("Planine");
+                //var ekskurzije = _facade.GetPackagesByType("Ekskurzije");
+                //var krstarenja = _facade.GetPackagesByType("Krstarenja");
+
+
+                FillGrid(grids["Aranžman za more"], "More");
+                FillGrid(grids["Aranžman za planine"], "Planine" );
+                FillGrid(grids["Ekskurzije"], "Ekskurzije");
+                FillGrid(grids["Krstarenja"], "Krstarenja");
+
+
+
 
 
                 DataGridView CurrentGrid() => grids[(string)cboTip.SelectedItem];
@@ -717,6 +923,7 @@ namespace PathFinders.GUI
 
                 btnDodaj.Click += (s, e2) =>
                 {
+                    
                     var forma = new FormaNoviPaket();
                     if (forma.ShowDialog() == DialogResult.OK)
                     {
@@ -724,14 +931,30 @@ namespace PathFinders.GUI
                         var tipPaketa = forma.Tip;
 
                         if (tipPaketa == "Aranžman za more")
-                            grids[tipPaketa].Rows.Add(forma.Naziv, forma.Cena, tipPaketa, forma.Destinacija ?? "-", forma.TipSmestaja, forma.TipPrevoza);
+                        {
+                            SeaTravelPackageBuilder sea = new SeaTravelPackageBuilder(forma.Destinacija, forma.TipPrevoza, forma.TipSmestaja);
+                            _facade.AddPackageAsync(forma.Naziv, decimal.Parse(forma.Cena), forma.Destinacija, sea);
+                            FillGrid(grids["Aranžman za more"], "More");
+                        }
                         else if (tipPaketa == "Aranžman za planine")
-                            grids[tipPaketa].Rows.Add(forma.Naziv, forma.Cena, tipPaketa, forma.Destinacija ?? "-", forma.TipSmestaja, forma.DodatneAktivnosti);
+                        {
+                            List<string> lista = (forma.DodatneAktivnosti).Split('-').ToList();
+                            MountainTravelPackageBuilder mountain = new MountainTravelPackageBuilder(forma.Destinacija, forma.TipPrevoza, forma.TipSmestaja, lista);
+                            _facade.AddPackageAsync(forma.Naziv, decimal.Parse(forma.Cena), forma.Destinacija, mountain);
+                            FillGrid(grids["Aranžman za planine"], "Planine");
+                        }
                         else if (tipPaketa == "Ekskurzije")
-                            grids[tipPaketa].Rows.Add(forma.Naziv, forma.Cena, tipPaketa, forma.Destinacija ?? "-", forma.TipPrevoza, forma.Vodic);
+                        {
+                            ExcursionTravelPackageBuilder ex = new ExcursionTravelPackageBuilder(forma.Destinacija, forma.TipPrevoza, forma.Vodic, forma.Trajanje);
+                            _facade.AddPackageAsync(forma.Naziv, decimal.Parse(forma.Cena), forma.Destinacija, ex);
+                            FillGrid(grids["Ekskurzije"], "Ekskurzije");
+                        }
                         else if (tipPaketa == "Krstarenja")
-                            grids[tipPaketa].Rows.Add(forma.Naziv, forma.Cena, tipPaketa, forma.Brod, forma.Ruta, forma.DatumPolaska.HasValue ? forma.DatumPolaska.Value.ToString("dd.MM.yyyy") : "");
-
+                        {
+                            CruiseTravelPackageBuilder cruise = new CruiseTravelPackageBuilder(forma.Brod, forma.Ruta, forma.DatumPolaska, forma.TipKabine);
+                            _facade.AddPackageAsync(forma.Naziv, decimal.Parse(forma.Cena), forma.Ruta, cruise);
+                            FillGrid(grids["Krstarenja"], "Krstarenja");
+                        }
 
                         cboTip.SelectedItem = tipPaketa;
                     }
@@ -771,6 +994,7 @@ namespace PathFinders.GUI
                     string naziv = GetCell("Naziv");
                     string tipPaketa = GetCell("Tip");
                     string cena = GetCell("Cena");
+                    string id = GetCell("ID");
 
                     FormaIzmenaPaketa forma = null;
 
@@ -793,12 +1017,14 @@ namespace PathFinders.GUI
                         var destinacija = GetCell("Destinacija");
                         var tipSmestaja = GetCell("Tip smeštaja");
                         var akt = GetCell("Dodatne aktivnosti");
+                        var tipPrevoza = GetCell("TipPrevoza");
 
                         forma = new FormaIzmenaPaketa(
                             naziv, tipPaketa, cena,
                             destinacija: destinacija,
                             tipSmestaja: tipSmestaja,
-                            dodatneAkt: akt
+                            dodatneAkt: akt,
+                            tipPrevoza: tipPrevoza
                         );
                     }
                     else if (tipPaketa == "Ekskurzije")
@@ -806,12 +1032,14 @@ namespace PathFinders.GUI
                         var destinacija = GetCell("Destinacija");
                         var tipPrevoza = GetCell("Tip prevoza");
                         var vodic = GetCell("Vodič");
+                        var trajanje = GetCell("Trajanje");
 
                         forma = new FormaIzmenaPaketa(
                             naziv, tipPaketa, cena,
                             destinacija: destinacija,
                             tipPrevoza: tipPrevoza,
-                            vodic: vodic
+                            vodic: vodic,
+                            trajanjeUDanima: int.Parse(trajanje)
                         );
                     }
                     else if (tipPaketa == "Krstarenja")
@@ -820,12 +1048,14 @@ namespace PathFinders.GUI
                         var ruta = GetCell("Ruta");
                         var polStr = GetCell("Polazak");
                         var pol = ParseDate(polStr);
+                        var tipKabine = GetCell("TipKabine");
 
                         forma = new FormaIzmenaPaketa(
                             naziv, tipPaketa, cena,
                             brod: brod,
                             ruta: ruta,
-                            datumPolaska: pol
+                            datumPolaska: pol,
+                            tipKabine: tipKabine
                         );
                     }
                     else
@@ -835,121 +1065,135 @@ namespace PathFinders.GUI
                     }
 
 
-                    if (forma.ShowDialog() != DialogResult.OK) return;
-
-
-                    string noviTip = forma.Tip;
-
-                    // Pripremi podatke po tipovima
-                    if (noviTip == "Aranžman za more")
+                    if (forma.ShowDialog() != DialogResult.OK)
                     {
-                        var dest = forma.Destinacija ?? "-";
-                        var tsm = forma.TipSmestaja;
-                        var tpv = forma.TipPrevoza;
+                        tipPaketa = forma.Tip;
 
-                        if (noviTip == tipPaketa)
+                        if (tipPaketa == "Aranžman za more")
                         {
-                            row.Cells["Naziv"].Value = forma.Naziv;
-                            row.Cells["Cena"].Value = forma.Cena;
-                            row.Cells["Tip"].Value = noviTip;
-                            row.Cells["Destinacija"].Value = dest;
-                            row.Cells["Tip smeštaja"].Value = tsm;
-                            row.Cells["Tip prevoza"].Value = tpv;
+                            SeaTravelPackageBuilder sea = new SeaTravelPackageBuilder(forma.Destinacija, forma.TipPrevoza, forma.TipSmestaja);
+                            _facade.AddPackageAsync(forma.Naziv, decimal.Parse(forma.Cena), forma.Destinacija, sea);
+                            FillGrid(grids["Aranžman za more"], "More");
                         }
-                        else
+                        else if (tipPaketa == "Aranžman za planine")
                         {
-                            fromGrid.Rows.Remove(row);
-                            grids[noviTip].Rows.Add(forma.Naziv, forma.Cena, noviTip, dest, tsm, tpv);
-                            cboTip.SelectedItem = noviTip;
+                            List<string> lista = (forma.DodatneAktivnosti).Split('-').ToList();
+                            MountainTravelPackageBuilder mountain = new MountainTravelPackageBuilder(forma.Destinacija, forma.TipPrevoza, forma.TipSmestaja, lista);
+                            //_facade.UpdatePackageAsync(mountain);
+                            FillGrid(grids["Aranžman za planine"], "Planine");
                         }
-                    }
-                    else if (noviTip == "Aranžman za planine")
-                    {
-                        var dest = forma.Destinacija ?? "-";
-                        var tsm = forma.TipSmestaja;
-                        var akt = forma.DodatneAktivnosti;
+                        else if (tipPaketa == "Ekskurzije")
+                        {
+                            ExcursionTravelPackageBuilder ex = new ExcursionTravelPackageBuilder(forma.Destinacija, forma.TipPrevoza, forma.Vodic, forma.TrajanjeUDanima);
+                            _facade.AddPackageAsync(forma.Naziv, decimal.Parse(forma.Cena), forma.Destinacija, ex);
+                            FillGrid(grids["Ekskurzije"], "Ekskurzije");
+                        }
+                        else if (tipPaketa == "Krstarenja")
+                        {
+                            CruiseTravelPackageBuilder cruise = new CruiseTravelPackageBuilder(forma.Brod, forma.Ruta, forma.DatumPolaska, forma.TipKabine);
+                            _facade.AddPackageAsync(forma.Naziv, decimal.Parse(forma.Cena), forma.Ruta, cruise);
+                            FillGrid(grids["Krstarenja"], "Krstarenja");
+                        }
 
-                        if (noviTip == tipPaketa)
-                        {
-                            row.Cells["Naziv"].Value = forma.Naziv;
-                            row.Cells["Cena"].Value = forma.Cena;
-                            row.Cells["Tip"].Value = noviTip;
-                            row.Cells["Destinacija"].Value = dest;
-                            row.Cells["Tip smeštaja"].Value = tsm;
-                            row.Cells["Dodatne aktivnosti"].Value = akt;
-                        }
-                        else
-                        {
-                            fromGrid.Rows.Remove(row);
-                            grids[noviTip].Rows.Add(forma.Naziv, forma.Cena, noviTip, dest, tsm, akt);
-                            cboTip.SelectedItem = noviTip;
-                        }
+                        cboTip.SelectedItem = tipPaketa;
                     }
-                    else if (noviTip == "Ekskurzije")
-                    {
-                        var dest = forma.Destinacija ?? "-";
-                        var tpv = forma.TipPrevoza;
-                        var vod = forma.Vodic;
 
-                        if (noviTip == tipPaketa)
-                        {
-                            row.Cells["Naziv"].Value = forma.Naziv;
-                            row.Cells["Cena"].Value = forma.Cena;
-                            row.Cells["Tip"].Value = noviTip;
-                            row.Cells["Destinacija"].Value = dest;
-                            row.Cells["Tip prevoza"].Value = tpv;
-                            row.Cells["Vodič"].Value = vod;
-                        }
-                        else
-                        {
-                            fromGrid.Rows.Remove(row);
-                            grids[noviTip].Rows.Add(forma.Naziv, forma.Cena, noviTip, dest, tpv, vod);
-                            cboTip.SelectedItem = noviTip;
-                        }
-                    }
-                    else if (noviTip == "Krstarenja")
-                    {
-                        var brod = forma.Brod;
-                        var ruta = forma.Ruta;
-                        var pol = forma.DatumPolaska.HasValue ? forma.DatumPolaska.Value.ToString("dd.MM.yyyy") : "";
 
-                        if (noviTip == tipPaketa)
-                        {
-                            row.Cells["Naziv"].Value = forma.Naziv;
-                            row.Cells["Cena"].Value = forma.Cena;
-                            row.Cells["Tip"].Value = noviTip;
-                            row.Cells["Brod"].Value = brod;
-                            row.Cells["Ruta"].Value = ruta;
-                            row.Cells["Polazak"].Value = pol;
-                        }
-                        else
-                        {
-                            fromGrid.Rows.Remove(row);
-                            grids[noviTip].Rows.Add(forma.Naziv, forma.Cena, noviTip, brod, ruta, pol);
-                            cboTip.SelectedItem = noviTip;
-                        }
-                    }
+
+
                 };
 
-
-                txtPretraga.TextChanged += (s, e2) =>
+                btnObrisi.Click += async (s, e2) =>
                 {
-                    var g = CurrentGrid();
-                    string q = (txtPretraga.Text ?? "").Trim().ToLowerInvariant();
-                    foreach (DataGridViewRow r in g.Rows)
+                    
+                    DataGridView fromGrid = null;
+                    DataGridViewRow row = null;
+                    foreach (var kv in grids)
                     {
-                        bool match = string.IsNullOrEmpty(q);
-                        if (!match)
+                        if (kv.Value.Visible && kv.Value.SelectedRows.Count > 0)
                         {
-                            foreach (DataGridViewCell c in r.Cells)
-                            {
-                                var val = c.Value?.ToString()?.ToLowerInvariant() ?? "";
-                                if (val.Contains(q)) { match = true; break; }
-                            }
+                            fromGrid = kv.Value;
+                            row = kv.Value.SelectedRows[0];
+                            break;
                         }
-                        r.Visible = match;
+                    }
+
+                    if (row == null)
+                    {
+                        MessageBox.Show("Prvo izaberi paket u tabeli.", "Info",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+
+                    
+                    int id;
+                    var rawId = row.Cells["ID"]?.Value;
+                    if (rawId is int i) id = i;
+                    else if (!int.TryParse(Convert.ToString(rawId), out id))
+                    {
+                        MessageBox.Show("ID paketa nije validan.", "Greška",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    var naziv = row.Cells["Naziv"]?.Value?.ToString() ?? "(bez naziva)";
+
+                    var confirm = MessageBox.Show(
+                        $"Obrisati paket „{naziv}” (ID: {id})?",
+                        "Potvrda brisanja",
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+
+                    if (confirm != DialogResult.Yes) return;
+
+                    try
+                    {
+                        await _facade.DeletePackageAsync(id);
+
+                        
+                        var tsel = (string)cboTip.SelectedItem;
+                        switch (tsel)
+                        {
+                            case "Aranžman za more":
+                                FillGrid(grids["Aranžman za more"], "More");
+                                break;
+                            case "Aranžman za planine":
+                                FillGrid(grids["Aranžman za planine"], "Planine");
+                                break;
+                            case "Ekskurzije":
+                                FillGrid(grids["Ekskurzije"], "Ekskurzije");
+                                break;
+                            case "Krstarenja":
+                                FillGrid(grids["Krstarenja"], "Krstarenja");
+                                break;
+                        }
+
+                        
+                        foreach (var g in grids.Values) { g.ClearSelection(); g.CurrentCell = null; }
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Greška pri brisanju paketa:\n" + ex.Message,
+                            "Greška", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 };
+                //txtPretraga.TextChanged += (s, e2) =>
+                //{
+                //    var g = CurrentGrid();
+                //    string q = (txtPretraga.Text ?? "").Trim().ToLowerInvariant();
+                //    foreach (DataGridViewRow r in g.Rows)
+                //    {
+                //        bool match = string.IsNullOrEmpty(q);
+                //        if (!match)
+                //        {
+                //            foreach (DataGridViewCell c in r.Cells)
+                //            {
+                //                var val = c.Value?.ToString()?.ToLowerInvariant() ?? "";
+                //                if (val.Contains(q)) { match = true; break; }
+                //            }
+                //        }
+                //        r.Visible = match;
+                //    }
+                //};
             }
             else if (tip == "Rezervacije")
             {

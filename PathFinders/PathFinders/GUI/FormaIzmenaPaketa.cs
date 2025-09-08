@@ -33,13 +33,18 @@ namespace PathFinders.GUI
         public string Vodic { get; private set; }
         public string Brod { get; private set; }
         public string Ruta { get; private set; }
-        public DateTime? DatumPolaska { get; private set; }
+        public DateTime DatumPolaska { get; private set; }
+        private NumericUpDown nudTrajanje;
+        private TextBox txtTipKabine;
 
+        // dodatna svojstva
+        public int TrajanjeUDanima { get; private set; }
+        public string TipKabine { get; private set; }
         public FormaIzmenaPaketa(
             string naziv, string tip, string cena,
             string destinacija = null, string tipSmestaja = null, string tipPrevoza = null,
             string dodatneAkt = null, string vodic = null,
-            string brod = null, string ruta = null, DateTime? datumPolaska = null)
+            string brod = null, string ruta = null, DateTime? datumPolaska = null, int trajanjeUDanima = 0, string tipKabine = null)
         {
             Text = "Izmena paketa";
             Size = new Size(520, 520);
@@ -95,6 +100,7 @@ namespace PathFinders.GUI
                 txtDestinacija.Text = destinacija ?? "";
                 txtTipPrevoza.Text = tipPrevoza ?? "";
                 txtVodic.Text = vodic ?? "";
+                
             }
             else if (tip == "Krstarenja")
             {
@@ -133,12 +139,18 @@ namespace PathFinders.GUI
                     Destinacija = txtDestinacija.Text.Trim();
                     TipPrevoza = txtTipPrevoza.Text.Trim();
                     Vodic = txtVodic.Text.Trim();
+                    if ( nudTrajanje != null)
+                    {
+                        int t = Math.Clamp(trajanjeUDanima, 1, 365);
+                        nudTrajanje.Value = t;
+                    }
                 }
                 else if (Tip == "Krstarenja")
                 {
                     Brod = txtBrod.Text.Trim();
                     Ruta = txtRuta.Text.Trim();
                     DatumPolaska = dtpDatumPolaska.Value.Date;
+                    if (txtTipKabine != null) txtTipKabine.Text = tipKabine ?? "";
                 }
 
                 DialogResult = DialogResult.OK;
@@ -176,6 +188,11 @@ namespace PathFinders.GUI
                 MakeLabel("Destinacija:", 0, y),      txtDestinacija = MakeTextBox(140, y, 320),
                 MakeLabel("Tip prevoza:", 0, y+=40),  txtTipPrevoza = MakeTextBox(140, y, 320),
                 MakeLabel("Vodič:", 0, y+=40),        txtVodic = MakeTextBox(140, y, 320),
+                MakeLabel("Trajanje (dani):", 0, y+=40),
+                nudTrajanje = new NumericUpDown {
+                    Left = 140, Top = y, Width = 120,
+                    Minimum = 1, Maximum = 365, Value = 1
+                }
             });
             }
             else if (tip == "Krstarenja")
@@ -183,9 +200,11 @@ namespace PathFinders.GUI
                 dynamicPanel.Controls.AddRange(new Control[] {
                 MakeLabel("Brod:", 0, y),             txtBrod = MakeTextBox(140, y, 320),
                 MakeLabel("Ruta:", 0, y+=40),         txtRuta = MakeTextBox(140, y, 320),
-                MakeLabel("Datum polaska:", 0, y+=40), dtpDatumPolaska = new DateTimePicker { Left=150, Top=y, Width=180, Format=DateTimePickerFormat.Short }
+                MakeLabel("Tip kabine:", 0, y+=40),   txtTipKabine = MakeTextBox(140, y, 320), 
+                MakeLabel("Datum polaska:", 0, y+=40),
+                dtpDatumPolaska = new DateTimePicker { Left=150, Top=y, Width=180, Format=DateTimePickerFormat.Short }
             });
-            }
+                    }
         }
 
         // helpers

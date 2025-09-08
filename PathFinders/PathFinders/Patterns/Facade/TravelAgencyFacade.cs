@@ -62,7 +62,10 @@ namespace PathFinders.Patterns.Facade
         {
             return Task.FromResult(_packages.GetPackages());
         }
-
+        public List<TravelPackage> GetPackagesByType(string type)
+        {
+            return _packages.GetPackagesByType(type);
+        }
         public Task AddPackageAsync(string name, decimal price, string destinationName, TravelPackageBuilder builder)
         {
             _packages.AddPackage(builder, name, price, destinationName);
